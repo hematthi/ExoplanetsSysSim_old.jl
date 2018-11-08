@@ -1,4 +1,6 @@
-if !isdefined(:ExoplanetsSysSim) using ExoplanetsSysSim end
+if !@isdefined ExoplanetsSysSim
+    using ExoplanetsSysSim
+end
 
 # Code for generating clustered planetary systems (once stable can move to src/planetary_system.jl)
 
@@ -6,7 +8,7 @@ function calc_hill_sphere(a::Float64, mu::Float64)
   a*(mu/3)^(1//3)
 end
 
-function calc_mutual_hill_radii{StarT<:StarAbstract}(ps::PlanetarySystem{StarT},pl1::Int64, pl2::Int64)
+function calc_mutual_hill_radii(ps::PlanetarySystem{StarT}, pl1::Int64, pl2::Int64) where StarT <: StarAbstract
   mu = (ps.planet[pl1].mass+ps.planet[pl2].mass)/ps.star.mass
   a = 0.5*(ps.orbit[pl1].a+ps.orbit[pl2].a)
   calc_hill_sphere(a,mu)
@@ -14,7 +16,7 @@ end
 
 function test_stability_circular(P::Vector{Float64},mass::Vector{Float64},star_mass::Float64, sim_param::SimParam)
    @assert length(P) == length(mass)
-   const min_num_mutual_hill_radii = get_real(sim_param,"num_mutual_hill_radii")
+   min_num_mutual_hill_radii = get_real(sim_param,"num_mutual_hill_radii")
    #println("# test_stability_circ: mass= ",mass," star_mass=",star_mass)
    #println("# test_stability_circ: mu= ",mass/star_mass, "; P= ",P)
    #print(  "# (aratio,Delta_H)= ")
@@ -39,7 +41,7 @@ end
 
 function test_stability(P::Vector{Float64},mass::Vector{Float64},star_mass::Float64, sim_param::SimParam; ecc::Vector{Float64} = zeros(length(P)))
    @assert length(P) == length(mass) == length(ecc)
-   const min_num_mutual_hill_radii = get_real(sim_param,"num_mutual_hill_radii")
+   min_num_mutual_hill_radii = get_real(sim_param,"num_mutual_hill_radii")
    found_instability = false
    order = sortperm(P)
    a2 = semimajor_axis(P[order[1]],star_mass)
@@ -61,9 +63,9 @@ end
 
 function calc_if_near_resonance(P::Vector{Float64})
    @assert issorted(P)   # TODO: OPT: Could remove once know it is safe
-   const resonance_width = 0.05   # TODO: FEATURE Make a model parameter?  Would need sim_param
-   const resonance_width_factor = 1+resonance_width
-   const period_ratios_to_check = [ 2.0, 1.5, 4/3, 5/4 ]
+   resonance_width = 0.05   # TODO: FEATURE Make a model parameter?  Would need sim_param
+   resonance_width_factor = 1+resonance_width
+   period_ratios_to_check = [ 2.0, 1.5, 4/3, 5/4 ]
    result = falses(length(P))
    if length(P) >= 2
       for i in 1:(length(P)-1)
@@ -81,28 +83,28 @@ end
 
 function generate_planet_periods_sizes_masses_eccs_in_cluster( star::StarAbstract, sim_param::SimParam; n::Int64 = 1 )  # TODO: IMPORTANT: Make this function work and test before using for science
    @assert n>=1
-   const generate_planet_mass_from_radius = get_function(sim_param,"generate_planet_mass_from_radius")
-   const generate_sizes = get_function(sim_param,"generate_sizes")
-   const generate_e_omega = get_function(sim_param,"generate_e_omega")
-   const sigma_ecc::Float64 = haskey(sim_param,"sigma_hk") ? get_real(sim_param,"sigma_hk") : 0.0
+   generate_planet_mass_from_radius = get_function(sim_param,"generate_planet_mass_from_radius")
+   generate_sizes = get_function(sim_param,"generate_sizes")
+   generate_e_omega = get_function(sim_param,"generate_e_omega")
+   sigma_ecc::Float64 = haskey(sim_param,"sigma_hk") ? get_real(sim_param,"sigma_hk") : 0.0
 
    if n==1
-      R = generate_sizes(star,sim_param)[1]
-      mass = map(r->generate_planet_mass_from_radius(r,sim_param),R)
+      R = generate_sizes(star,sim_param)
+      mass = [generate_planet_mass_from_radius(R[1],sim_param)]
       P = [1.0] # generate_periods_power_law(star,sim_param)
       eccentricity::Float64,  omega_e::Float64 = generate_e_omega(sigma_ecc)::Tuple{Float64,Float64}
       ecc, omega = [eccentricity], [omega_e]
-      return P, R, mass, ecc, omega
+      return (P, R, mass, ecc, omega)
    end
 
    # If reach here, then at least 2 planets in cluster
 
    mean_R = generate_sizes(star,sim_param)[1]
-   const sigma_log_radius_in_cluster = get_real(sim_param,"sigma_log_radius_in_cluster")
+   sigma_log_radius_in_cluster = get_real(sim_param,"sigma_log_radius_in_cluster")
    #println("# mean_R = ",mean_R," sigma_log_radius_in_cluster= ",sigma_log_radius_in_cluster)
 
-   const min_radius::Float64 = get_real(sim_param,"min_radius")
-   const max_radius::Float64 = get_real(sim_param,"max_radius")
+   min_radius::Float64 = get_real(sim_param,"min_radius")
+   max_radius::Float64 = get_real(sim_param,"max_radius")
    #Rdist = LogNormal(log(mean_R),sigma_log_radius_in_cluster)
    Rdist = Truncated(LogNormal(log(mean_R),sigma_log_radius_in_cluster), min_radius, max_radius) # if we want clustered planet sizes
    R = rand(Rdist,n)
@@ -113,15 +115,15 @@ function generate_planet_periods_sizes_masses_eccs_in_cluster( star::StarAbstrac
    #println("# mass = ", mass)
 
    local ecc, omega
-   ecc::Array{Float64,1} = Array{Float64}(n)
-   omega::Array{Float64,1} = Array{Float64}(n)
+   ecc::Array{Float64,1} = Array{Float64}(undef, n)
+   omega::Array{Float64,1} = Array{Float64}(undef, n)
    for i in 1:n
         (ecc[i],  omega[i]) = generate_e_omega(sigma_ecc)::Tuple{Float64,Float64}
    end
 
-   const sigma_logperiod_per_pl_in_cluster = get_real(sim_param,"sigma_logperiod_per_pl_in_cluster")
-   const min_period = get_real(sim_param,"min_period")
-   const max_period = get_real(sim_param,"max_period")
+   sigma_logperiod_per_pl_in_cluster = get_real(sim_param,"sigma_logperiod_per_pl_in_cluster")
+   min_period = get_real(sim_param,"min_period")
+   max_period = get_real(sim_param,"max_period")
    log_mean_P = 0.0 # log(generate_periods_power_law(star,sim_param))
    # Note: Currently, drawing all periods within a cluster at once and either keeping or rejecting the whole cluster
    #       Should we instead draw periods one at a time?
@@ -146,29 +148,29 @@ function generate_planet_periods_sizes_masses_eccs_in_cluster( star::StarAbstrac
       #println("# Warning: Did not find a good set of periods, sizes and masses for one cluster.")
       return fill(NaN,n), R, mass, ecc, omega  # Return NaNs for periods to indicate failed
    end
-   return P, R, mass, ecc, omega    # Note can also return earlier if only one planet in cluster or if fail to generate a good set of values
+   return (P, R, mass, ecc, omega)    # Note can also return earlier if only one planet in cluster or if fail to generate a good set of values
 end
 
 function generate_num_planets_in_cluster_poisson(s::Star, sim_param::SimParam)
-  const lambda::Float64 = exp(get_real(sim_param,"log_rate_planets_per_cluster"))
-  const max_planets_in_cluster::Int64 = get_int(sim_param,"max_planets_in_cluster")
-  ExoplanetsSysSim.generate_num_planets_poisson(lambda,max_planets_in_cluster,min_planets=1)
+    lambda::Float64 = exp(get_real(sim_param,"log_rate_planets_per_cluster"))
+    max_planets_in_cluster::Int64 = get_int(sim_param,"max_planets_in_cluster")
+    return ExoplanetsSysSim.draw_truncated_poisson(lambda, min=1, max=max_planets_in_cluster, n=1)[1]
 end
 
 function generate_num_clusters_poisson(s::Star, sim_param::SimParam)
-  const lambda::Float64 = exp(get_real(sim_param,"log_rate_clusters"))
-  const max_clusters_in_sys::Int64 = get_int(sim_param,"max_clusters_in_sys")
-  ExoplanetsSysSim.generate_num_planets_poisson(lambda,max_clusters_in_sys)
+    lambda::Float64 = exp(get_real(sim_param,"log_rate_clusters"))
+    max_clusters_in_sys::Int64 = get_int(sim_param,"max_clusters_in_sys")
+    return ExoplanetsSysSim.draw_truncated_poisson(lambda, min=0, max=max_clusters_in_sys, n=1)[1]
 end
 
 # This version generates clustered planetary systems, adaptation of python code from Matthias He
 function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimParam; verbose::Bool = false)  # TODO: Make this function work and test before using for science
   # load functions to use for drawing parameters
-  const generate_num_clusters = get_function(sim_param,"generate_num_clusters")
-  const generate_num_planets_in_cluster = get_function(sim_param,"generate_num_planets_in_cluster")
-  const power_law_P = get_real(sim_param,"power_law_P")
-  const min_period = get_real(sim_param,"min_period")
-  const max_period = get_real(sim_param,"max_period")
+  generate_num_clusters = get_function(sim_param,"generate_num_clusters")
+  generate_num_planets_in_cluster = get_function(sim_param,"generate_num_planets_in_cluster")
+  power_law_P = get_real(sim_param,"power_law_P")
+  min_period = get_real(sim_param,"min_period")
+  max_period = get_real(sim_param,"max_period")
 
   # To check if we have any giant stars in our catalog
   if star.radius > 5
@@ -185,7 +187,6 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
 
      # First, generate number of clusters (to attempt) and planets (to attempt) in each cluster
      num_clusters = generate_num_clusters(star,sim_param)::Int64
-     #num_clusters = 1 # If we want to test singly-clustered model
      num_pl_in_cluster = map(x->generate_num_planets_in_cluster(star, sim_param)::Int64, 1:num_clusters)
      #num_pl_in_cluster = ones(Int64, num_clusters) ##### If we want a non-clustered model, setting each cluster to have 1 planet is equivalent to having no clusters
      num_pl = sum(num_pl_in_cluster)
@@ -195,17 +196,18 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
      if( num_pl==0 )
        return PlanetarySystem(star)
      end
-     Plist::Array{Float64,1} = Array{Float64}(num_pl)
-     Rlist::Array{Float64,1} = Array{Float64}(num_pl)
-     masslist::Array{Float64,1} = Array{Float64}(num_pl)
-     ecclist::Array{Float64,1} = Array{Float64}(num_pl)
-     omegalist::Array{Float64,1} = Array{Float64}(num_pl)
+     Plist::Array{Float64,1} = Array{Float64}(undef, num_pl)
+     Rlist::Array{Float64,1} = Array{Float64}(undef, num_pl)
+     masslist::Array{Float64,1} = Array{Float64}(undef, num_pl)
+     ecclist::Array{Float64,1} = Array{Float64}(undef, num_pl)
+     omegalist::Array{Float64,1} = Array{Float64}(undef, num_pl)
      @assert num_pl_in_cluster[1] >= 1
      pl_start = 1
      pl_stop = 0
      for c in 1:num_clusters
          pl_stop  += num_pl_in_cluster[c]
-         Plist_tmp::Array{Float64,1}, Rlist[pl_start:pl_stop], masslist[pl_start:pl_stop], ecclist[pl_start:pl_stop], omegalist[pl_start:pl_stop] = generate_planet_periods_sizes_masses_eccs_in_cluster(star, sim_param, n = num_pl_in_cluster[c])
+         Plist_tmp::Array{Float64,1}, Rlist_tmp::Array{Float64,1}, masslist_tmp::Array{Float64,1}, ecclist_tmp::Array{Float64,1}, omegalist_tmp::Array{Float64,1} = generate_planet_periods_sizes_masses_eccs_in_cluster(star, sim_param, n = num_pl_in_cluster[c])
+         Rlist[pl_start:pl_stop], masslist[pl_start:pl_stop], ecclist[pl_start:pl_stop], omegalist[pl_start:pl_stop] = Rlist_tmp, masslist_tmp, ecclist_tmp, omegalist_tmp
          valid_cluster = !any(isnan.(Plist_tmp)) #should this be looking for nans in Plist or Plist_tmp? Was Plist but I think it should be Plist_tmp!
          valid_period_scale = false
          attempt_period_scale = 0
@@ -214,7 +216,7 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
              attempt_period_scale += 1
 
              #period_scale::Array{Float64,1} = ExoplanetsSysSim.generate_periods_power_law(star,sim_param)
-             period_scale::Array{Float64,1} = power_law_P!=-1.0 ? ExoplanetsSysSim.draw_power_law(power_law_P, min_period/min(Plist_tmp...), max_period/max(Plist_tmp...), 1) : exp(log(min_period/min(Plist_tmp...)).+rand()*log((max_period/max(Plist_tmp...))/(min_period/min(Plist_tmp...))))
+             period_scale::Array{Float64,1} = ExoplanetsSysSim.draw_power_law(power_law_P, min_period/min(Plist_tmp...), max_period/max(Plist_tmp...), 1)
              #Note: this ensures that the minimum and maximum periods will be in the range [min_period, max_period]
              #Warning: not sure about the behaviour when min_period/min(Plist_tmp...) > max_period/max(Plist_tmp...) (i.e. when the cluster cannot fit in the given range)?
              #TODO OPT: could draw period_scale more efficiently by computing the allowed regions in [min_period, max_period] given the previous cluster draws
@@ -240,7 +242,7 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
          #end
 
          if !valid_period_scale
-            Plist[pl_start:pl_stop] = NaN
+            Plist[pl_start:pl_stop] .= NaN
          end
          pl_start += num_pl_in_cluster[c]
      end # for c in 1:num_clusters
@@ -300,11 +302,11 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
   # Now assign orbits with given periods, sizes, and masses.
 ###const generate_e_omega = get_function(sim_param,"generate_e_omega")
 ###const sigma_ecc::Float64 = haskey(sim_param,"sigma_hk") ? get_real(sim_param,"sigma_hk") : 0.0
-  const sigma_incl = deg2rad(get_real(sim_param,"sigma_incl"))
-  const sigma_incl_near_mmr = deg2rad(get_real(sim_param,"sigma_incl_near_mmr"))
-  const max_incl_sys = get_real(sim_param,"max_incl_sys")
-    pl = Array{Planet}(num_pl)
-    orbit = Array{Orbit}(num_pl)
+  sigma_incl = deg2rad(get_real(sim_param,"sigma_incl"))
+  sigma_incl_near_mmr = deg2rad(get_real(sim_param,"sigma_incl_near_mmr"))
+  max_incl_sys = get_real(sim_param,"max_incl_sys")
+    pl = Array{Planet}(undef, num_pl)
+    orbit = Array{Orbit}(undef, num_pl)
     incl_sys = acos(cos(max_incl_sys*pi/180)*rand()) #acos(rand()) for isotropic distribution of system inclinations; acos(cos(X*pi/180)*rand()) gives angles from X (deg) to 90 (deg)
     idx = sortperm(Plist)       # TODO OPT: Check to see if sorting is significant time sink.  If so, could reduce redundant sortperm
     is_near_resonance = calc_if_near_resonance(Plist[idx])
@@ -334,4 +336,3 @@ function test_generate_planetary_system_clustered() # TODO: Update to test to no
   sim_param = setup_sim_param_model()
   cat_phys = generate_kepler_physical_catalog(sim_param)
 end
-

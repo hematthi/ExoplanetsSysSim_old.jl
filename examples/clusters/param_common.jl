@@ -9,8 +9,8 @@ function setup_sim_param_model(args::Vector{String} = Array{String}(undef, 0) ) 
   sim_param = SimParam()
   # How many tatrges to generate
   #add_param_fixed(sim_param,"num_targets_sim_pass_one",150061)                      # Note this is used for the number of stars in the simulations, not necessarily related to number of Kepler targets
-  add_param_fixed(sim_param,"num_targets_sim_pass_one",78005)                      # Note this is used for the number of stars in the simulations, not necessarily related to number of Kepler targets
-  add_param_fixed(sim_param,"num_kepler_targets",78005)                            # Note this is used for the number of Kepler targets for the observational catalog
+  add_param_fixed(sim_param,"num_targets_sim_pass_one",80006)                      # Note this is used for the number of stars in the simulations, not necessarily related to number of Kepler targets
+  add_param_fixed(sim_param,"num_kepler_targets",80006)                            # Note this is used for the number of Kepler targets for the observational catalog
 
   # For generating target star properties
   add_param_fixed(sim_param,"generate_kepler_target",generate_kepler_target_from_table)
@@ -25,17 +25,17 @@ function setup_sim_param_model(args::Vector{String} = Array{String}(undef, 0) ) 
 
   add_param_fixed(sim_param,"generate_num_clusters",generate_num_clusters_poisson) 
   add_param_fixed(sim_param,"generate_num_planets_in_cluster",generate_num_planets_in_cluster_poisson)
-  add_param_active(sim_param,"log_rate_clusters",log(3.0))
+  add_param_active(sim_param,"log_rate_clusters",log(2.5))
   add_param_fixed(sim_param,"max_clusters_in_sys",10)
-  add_param_active(sim_param,"log_rate_planets_per_cluster",log(3.0))
+  add_param_active(sim_param,"log_rate_planets_per_cluster",log(2.0))
   add_param_fixed(sim_param,"max_planets_in_cluster",10)
 
   # generate_num_planets_in_cluster currently calls: generate_periods_power_law
   add_param_fixed(sim_param,"generate_sizes",ExoplanetsSysSim.generate_sizes_broken_power_law) # To choose the way we draw planetary radii; if "generate_sizes_power_law", then takes "power_law_r"; if "generate_sizes_broken_power_law", then takes "power_law_r1", "power_law_r2", and "break_radius"
   add_param_active(sim_param,"power_law_P",0.5)
   add_param_fixed(sim_param,"power_law_r",-2.5)
-  add_param_active(sim_param,"power_law_r1",-1.5)
-  add_param_active(sim_param,"power_law_r2",-6.0)
+  add_param_active(sim_param,"power_law_r1",-2.0)
+  add_param_active(sim_param,"power_law_r2",-4.0)
   add_param_fixed(sim_param,"min_period",3.0)
   add_param_fixed(sim_param,"max_period",300.0)
   add_param_fixed(sim_param,"min_radius",0.5*ExoplanetsSysSim.earth_radius)

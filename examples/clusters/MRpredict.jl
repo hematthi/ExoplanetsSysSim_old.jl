@@ -375,8 +375,8 @@ using GridInterpolations
 
 N_quantiles = 1001
 quantiles = collect(range(0., stop=1.0, length=N_quantiles))
-grid = RectangleGrid(log_Mass_table[:,1], quantiles)
-gridData = convert(Array, log_Mass_table[:,2:end])
+grid = RectangleGrid(log_Mass_table[1:end,1], quantiles)
+gridData = convert(Array, log_Mass_table[1:end,2:end])
 
 #x = [0., 0.5] #an example data point to interpolate at
 #interpolate(grid, gridData, x) #interpolate at the example data point
@@ -392,7 +392,7 @@ N_quantiles = 1001
 log_Radii = range(MR_param.Radius_min, stop=MR_param.Radius_max, length=N_radii)
 quantiles = range(0., stop=1.0, length=N_quantiles)
 
-table_data = convert(Array, log_Mass_table[:,2:end])
+table_data = convert(Array, log_Mass_table[1:end,2:end])
 itp = interpolate(table_data, BSpline(Cubic(Line(OnGrid())))) #interpolation object where the x and y axes are indices
 scaled_itp = Interpolations.scale(itp, log_Radii, quantiles) #scaled interpolation object where the x and y axes are scaled to their physical units
 

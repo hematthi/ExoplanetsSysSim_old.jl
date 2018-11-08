@@ -20,7 +20,7 @@ import DataFrames.skipmissing
 
 ##### To start saving the model iterations in the optimization into a file:
 
-@everywhere add_param_fixed(sim_param,"num_targets_sim_pass_one",78005)
+@everywhere add_param_fixed(sim_param,"num_targets_sim_pass_one",80006)
 
 model_name = "Clustered_P_R_broken_R_optimization"
 optimization_number = "_random"*ARGS[1] #if want to run on the cluster with random initial active parameters: "_random"*ARGS[1]

@@ -12,16 +12,16 @@ sim_param = setup_sim_param_model()
 
 ##### To start saving the model iterations in the optimization into a file:
 
-add_param_fixed(sim_param,"num_targets_sim_pass_one",78005)
+add_param_fixed(sim_param,"num_targets_sim_pass_one",80006)
 
 model_name = "Clustered_P_R_broken_R_optimization"
 optimization_number = "_random"*ARGS[1] #if want to run on the cluster with random initial active parameters: "_random"*ARGS[1]
 use_KS_or_AD = "KS" #'KS' or 'AD'
 AD_mod = true
 Kep_or_Sim = "Kep" #'Kep' or 'Sim'
-max_evals = 10000
+max_evals = 5000
 num_evals_weights = 20
-dists_exclude = [7,8,13] #Int64[] if want to include all distances
+dists_exclude = [9,10,11,12,13] #Int64[] if want to include all distances
 Pop_per_param = 4
 
 file_name = model_name*optimization_number*"_targs"*string(get_int(sim_param,"num_targets_sim_pass_one"))*"_evals"*string(max_evals)*".txt"
