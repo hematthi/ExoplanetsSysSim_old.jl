@@ -78,7 +78,7 @@ active_params_box = [(log(1.), log(5.)), (log(1.), log(5.)), (-0.5, 1.5), (-6., 
 
 #To randomly draw (uniformly) a value for each active model parameter within its search range:
 
-Random.seed! #to have a random set of initial parameters and optimization run
+Random.seed!() #to have a random set of initial parameters and optimization run
 
 for (i,param_key) in enumerate(active_param_keys)
     if ~in(i,transformed_indices)

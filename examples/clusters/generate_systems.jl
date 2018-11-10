@@ -1,6 +1,3 @@
-using CSV
-test = CSV.read("/Users/Matthias/.julia/dev/ExoplanetsSysSim/data/q1q17_dr25_gaia_fgk.csv",allowmissing=:all)
-
 include("clusters.jl")
 sim_param = setup_sim_param_model()
 
