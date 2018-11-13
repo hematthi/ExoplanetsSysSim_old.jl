@@ -126,7 +126,7 @@ for i in 1:length(KOI_systems)
         system_sort_i = sortperm(system_P) #indices that would sort the periods of the planets in this system
         system_P = system_P[system_sort_i] #periods of all the planets in this system, sorted
         system_t_D = system_t_D[system_sort_i] #transit durations of all the planets in this system, sorted by period
-        system_D = system_D[system_sort_i] #transit depths of all the planets in this system, sorted by period
+        system_D = system_D[system_sort_i]/(1e6) #transit depths of all the planets in this system, sorted by period
         system_radii = system_radii[system_sort_i] #radii of all the planets in this system, sorted by period
 
         #To count the total number of planets in this system:
