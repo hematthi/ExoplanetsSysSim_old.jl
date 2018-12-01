@@ -12,19 +12,18 @@ sim_param = setup_sim_param_model()
 
 ##### To start saving the model iterations in the optimization into a file:
 
-add_param_fixed(sim_param,"num_targets_sim_pass_one",80006)
-
 model_name = "Clustered_P_R_broken_R_optimization"
 optimization_number = "_random"*ARGS[1] #if want to run on the cluster with random initial active parameters: "_random"*ARGS[1]
 use_KS_or_AD = "KS" #'KS' or 'AD'
 AD_mod = true
 Kep_or_Sim = "Kep" #'Kep' or 'Sim'
+num_targs = 80006
 max_evals = 5000
 num_evals_weights = 20
 dists_exclude = [9,10,11,12,13] #Int64[] if want to include all distances
 Pop_per_param = 4
 
-file_name = model_name*optimization_number*"_targs"*string(get_int(sim_param,"num_targets_sim_pass_one"))*"_evals"*string(max_evals)*".txt"
+file_name = model_name*optimization_number*"_targs"*string(num_targs)*"_evals"*string(max_evals)*".txt"
 f = open(file_name, "w")
 println(f, "# All initial parameters:")
 write_model_params(f, sim_param)
@@ -45,7 +44,8 @@ cat_obs = observe_kepler_targets_single_obs(cat_phys_cut,sim_param)
 summary_stat_ref = calc_summary_stats_model(cat_obs,sim_param)
 
 #To simulate more observed planets for the subsequent model generations:
-add_param_fixed(sim_param,"max_incl_sys",80.0) #degrees; 0 (deg) for isotropic system inclinations; set closer to 90 (deg) for more transiting systems
+add_param_fixed(sim_param,"num_targets_sim_pass_one", num_targs)
+add_param_fixed(sim_param,"max_incl_sys", 80.0) #degrees; 0 (deg) for isotropic system inclinations; set closer to 90 (deg) for more transiting systems
 
 active_param_true, weights, target_fitness, target_fitness_std = compute_weights_target_fitness_std_perfect_model(num_evals_weights, use_KS_or_AD ; AD_mod=AD_mod, weight=true, dists_exclude=dists_exclude, save_dist=true)
 
@@ -59,8 +59,7 @@ active_param_true, weights, target_fitness, target_fitness_std = compute_weights
 transformed_indices = []
 active_param_keys = ["log_rate_clusters", "log_rate_planets_per_cluster", "power_law_P", "power_law_r1", "power_law_r2", "sigma_hk", "sigma_incl", "sigma_incl_near_mmr", "sigma_log_radius_in_cluster", "sigma_logperiod_per_pl_in_cluster"]
     #["break_radius", "log_rate_clusters", "log_rate_planets_per_cluster", "mr_power_index", "num_mutual_hill_radii", "power_law_P", "power_law_r1", "power_law_r2", "sigma_hk", "sigma_incl", "sigma_incl_near_mmr", "sigma_log_radius_in_cluster", "sigma_logperiod_per_pl_in_cluster"]
-active_params_box = [(log(1.), log(5.)), (log(1.), log(5.)), (-0.5, 1.5), (-6., 0.), (-6., 0.), (0., 0.1), (0., 5.), (0., 5.), (0., 0.5), (0., 0.3)] #search ranges for all of the active parameters
-    #[(0.5*ExoplanetsSysSim.earth_radius, 10.*ExoplanetsSysSim.earth_radius), (log(1.), log(5.)), (log(1.), log(5.)), (1., 4.), (3., 20.), (-0.5, 1.5), (-6., 0.), (-6., 0.), (0., 0.1), (0., 5.), (0., 5.), (0.1, 1.0), (0., 0.3)] #search ranges for all of the active parameters
+active_params_box = [(log(0.5), log(5.)), (log(0.5), log(5.)), (-2., 1.), (-6., 0.), (-6., 0.), (0., 0.1), (0., 10.), (0., 10.), (0., 0.5), (0., 0.3)] #search ranges for all of the active parameters
 #active_params_transformed_box = [(log(1.), log(5.)), (log(1.), log(5.)), (-0.5, 1.5), (-6., 0.), (-6., 0.), (0., 0.1), (0., 5.), (0., 5.), (0., 0.5), (0., 0.3)] #search ranges for all of the active parameters
 #transformed_triangle = [[0., 0.], [5., 5.], [5., 0.]] #vertices (x,y) of the triangle for the transformed params
 
