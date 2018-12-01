@@ -128,6 +128,10 @@ end
 ##### Function to compute the Cressie-Read Power Divergence (CRPD) statistic for the distributions of observed planet multiciplities:
 function CRPDstats(En::AbstractVector{T}, On::AbstractVector{S}) where {T <: Int, S <: Int}
     #En and On must be arrays of the total numbers of systems with 1,2,3,... observed planets, in the simulated (i.e. expected) and the actual (i.e. observed Kepler) data, respectively
+    n_max = max(length(En), length(On))
+    En = append!(En, zeros(n_max - length(En)))
+    On = append!(On, zeros(n_max - length(On)))
+
     E_array = En./sum(En) #normalized numbers (fractions) of simulated systems with 1,2,3,... observed planets
     O_array = On./sum(On) #normalized numbers (fractions) of actual Kepler systems with 1,2,3,... observed planets
     rho = 0.
