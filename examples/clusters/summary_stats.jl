@@ -74,7 +74,9 @@ function calc_summary_stats_duration_ratios_neighbors!(css::CatalogSummaryStatis
      num_ratios += length(idx_n_tranets[i])*(i-1)
   end
   duration_ratio_list = Array{Float64}(undef, num_ratios)
- 
+  duration_ratio_non_mmr_list = Float64[]
+  duration_ratio_near_mmr_list = Float64[]
+
   k = 0
   for n in 2:length(idx_n_tranets)         # Loop over number of tranets in system
     for i in idx_n_tranets[n]              # Loop over systems with n tranets
@@ -86,18 +88,27 @@ function calc_summary_stats_duration_ratios_neighbors!(css::CatalogSummaryStatis
        end
        perm = sortperm(period_in_sys)
        for j in 1:(n-1)                       # Loop over period ratios within a system
-          inv_period_ratio = period_in_sys[perm[j+1]]/period_in_sys[perm[j]]
-          if 1<inv_period_ratio<Inf
+          period_ratio = period_in_sys[perm[j+1]]/period_in_sys[perm[j]]
+          if 1<period_ratio<Inf
              k += 1
-             duration_ratio_list[k] = duration_in_sys[perm[j]]/duration_in_sys[perm[j+1]] * inv_period_ratio^(1//3)
+             xi = duration_in_sys[perm[j]]/duration_in_sys[perm[j+1]] * period_ratio^(1//3)
+             duration_ratio_list[k] = xi
+
+             if is_period_ratio_near_resonance(period_ratio, param)
+                append!(duration_ratio_near_mmr_list, xi)
+             else
+                append!(duration_ratio_non_mmr_list, xi)
+             end
           end
        end
     end
   end
   resize!(duration_ratio_list,k)
   css.stat["duration_ratio_list"] = duration_ratio_list
+  css.stat["duration_ratio_non_mmr_list"] = duration_ratio_non_mmr_list
+  css.stat["duration_ratio_near_mmr_list"] = duration_ratio_near_mmr_list
 
-  return duration_ratio_list
+  return duration_ratio_list, duration_ratio_non_mmr_list, duration_ratio_near_mmr_list
 end
 
 function calc_summary_stats_period_radius_ratios_neighbors_internal!(css::CatalogSummaryStatistics, cat_obs::KeplerObsCatalog, param::SimParam)

@@ -99,6 +99,8 @@ checked_bools = zeros(size(table_confirmed,1)) #0's denote KOI that were not che
 M_confirmed = Int64[] #list to be filled with the planet multiplicities of the systems
 R_confirmed = Float64[] #list to be filled with period ratios of adjacent planet pairs
 xi_confirmed = Float64[] #list to be filled with the period-normalized transit duration ratios of adjacent planet pairs
+xi_non_mmr_confirmed = Float64[] #list to be filled with the period-normalized transit duration ratios of adjacent planet pairs not near any resonances
+xi_near_mmr_confirmed = Float64[] #list to be filled with the period-normalized transit duration ratios of adjacent planet pairs near a resonance
 D_ratio_confirmed = Float64[] #list to be filled with the transit depth ratios of adjacent planet pairs
 P_confirmed = table_confirmed[:koi_period] #array of the periods (days)
 P_confirmed = collect(skipmissing(P_confirmed))
@@ -133,13 +135,20 @@ for i in 1:length(KOI_systems)
         push!(M_confirmed, length(system_P))
 
         #To compute the period ratios, period-normalized transit duration ratios, and transit depth ratios in this system:
-        system_R = system_P[2:end]./system_P[1:end-1] #period ratios of all the adjacent planet pairs in this system
-        system_D_ratio = system_D[2:end]./system_D[1:end-1] #transit depth ratios of all the adjacent planet pairs in this system
-        system_xi = (system_t_D[1:end-1]./system_t_D[2:end]).*(system_P[2:end]./system_P[1:end-1]).^(1//3) #period-normalized transit duration ratios of all the adjacent planet pairs in this system
+        system_R = system_P[2:end] ./ system_P[1:end-1] #period ratios of all the adjacent planet pairs in this system
+        system_D_ratio = system_D[2:end] ./ system_D[1:end-1] #transit depth ratios of all the adjacent planet pairs in this system
+        system_xi = (system_t_D[1:end-1] ./ system_t_D[2:end]) .* (system_R .^(1//3)) #period-normalized transit duration ratios of all the adjacent planet pairs in this system
 
         append!(R_confirmed, system_R)
         append!(D_ratio_confirmed, system_D_ratio)
         append!(xi_confirmed, system_xi)
+        for (j,period_ratio) in enumerate(system_R)
+            if is_period_ratio_near_resonance(period_ratio, sim_param)
+                append!(xi_near_mmr_confirmed, system_xi[j])
+            else
+                append!(xi_non_mmr_confirmed, system_xi[j])
+            end
+        end
 
         #To separate the planets in the system as above and below the boundary:
         system_above_bools = [photoevap_boundary_Carrera2018(system_radii[x], system_P[x]) for x in 1:length(system_P)]

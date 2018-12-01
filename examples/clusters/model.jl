@@ -56,21 +56,29 @@ function test_stability(P::Vector{Float64}, mass::Vector{Float64}, star_mass::Fl
     return !found_instability
 end
 
-function calc_if_near_resonance(P::Vector{Float64})
-    @assert issorted(P)   # TODO: OPT: Could remove once know it is safe
-    resonance_width = 0.05   # TODO: FEATURE Make a model parameter?  Would need sim_param
+function is_period_ratio_near_resonance(period_ratio::Float64, sim_param::SimParam)
+    resonance_width = get_real(sim_param, "resonance_width")
     resonance_width_factor = 1+resonance_width
-    period_ratios_to_check = [2.0, 1.5, 4/3, 5/4]
+    period_ratios_to_check = get_any(sim_param, "period_ratios_mmr", Array{Float64,1})
+    result = false
+    for period_ratio_mmr in period_ratios_to_check
+        if period_ratio_mmr <= period_ratio <= period_ratio_mmr*resonance_width_factor
+            result = true
+            break
+        end
+    end
+    return result
+end
+
+function calc_if_near_resonance(P::Vector{Float64}, sim_param::SimParam)
+    @assert issorted(P)   # TODO: OPT: Could remove once know it is safe
     result = falses(length(P))
     if length(P) >= 2
         for i in 1:(length(P)-1)
-            for period_ratio in period_ratios_to_check
-                if P[i]*period_ratio <= P[i+1] <= P[i]*period_ratio*resonance_width_factor
-                    result[i] = true
-                    result[i+1] = true
-                    break
-                end # if near resonance
-            end # period_ratio
+            if is_period_ratio_near_resonance(P[i+1]/P[i], sim_param)
+                result[i] = true
+                result[i+1] = true
+            end # near mmr
         end # planets
     end # at least two planets
     return result
@@ -287,7 +295,7 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
     orbit = Array{Orbit}(undef, num_pl)
     incl_sys = acos(cos(max_incl_sys*pi/180)*rand()) #acos(rand()) for isotropic distribution of system inclinations; acos(cos(X*pi/180)*rand()) gives angles from X (deg) to 90 (deg)
     idx = sortperm(Plist)       # TODO OPT: Check to see if sorting is significant time sink.  If so, could reduce redundant sortperm
-    is_near_resonance = calc_if_near_resonance(Plist[idx])
+    is_near_resonance = calc_if_near_resonance(Plist[idx], sim_param)
     for i in 1:num_pl
         #=
         if haskey(sim_param,"sigma_hk_one") && haskey(sim_param, "sigma_hk_multi")

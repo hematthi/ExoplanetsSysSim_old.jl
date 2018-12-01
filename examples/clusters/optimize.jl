@@ -20,7 +20,7 @@ Kep_or_Sim = "Kep" #'Kep' or 'Sim'
 num_targs = 80006
 max_evals = 5000
 num_evals_weights = 20
-dists_exclude = [9,10,11,12,13] #Int64[] if want to include all distances
+dists_exclude = [6,10,11,13,14,15] #Int64[] if want to include all distances
 Pop_per_param = 4
 
 file_name = model_name*optimization_number*"_targs"*string(num_targs)*"_evals"*string(max_evals)*".txt"
