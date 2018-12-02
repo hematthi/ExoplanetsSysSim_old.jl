@@ -19,7 +19,7 @@ function calc_distance(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, ss2::Exop
     end
 
     #To handle empty arrays:
-    if min(length(ss1.stat["radius_ratio_above_list"]), length(ss1.stat["radius_ratio_below_list"]), length(ss1.stat["radius_ratio_across_list"])) < 2 || min(length(ss2.stat["radius_ratio_above_list"]), length(ss2.stat["radius_ratio_below_list"]), length(ss2.stat["radius_ratio_across_list"])) < 2 #need at least 2 elements in each of these summary statistics per catalog in order to be able to compute AD distances
+    if min(length(ss1.stat["radius_ratio_above_list"]), length(ss1.stat["radius_ratio_below_list"]), length(ss1.stat["radius_ratio_across_list"]), length(ss1.stat["duration_ratio_non_mmr_list"]), length(ss1.stat["duration_ratio_near_mmr_list"])) < 2 || min(length(ss2.stat["radius_ratio_above_list"]), length(ss2.stat["radius_ratio_below_list"]), length(ss2.stat["radius_ratio_across_list"]), length(ss2.stat["duration_ratio_non_mmr_list"]), length(ss2.stat["duration_ratio_near_mmr_list"])) < 2 #need at least 2 elements in each of these summary statistics per catalog in order to be able to compute AD distances
         println("Not enough observed multi-planet systems in one of the catalogs to compute the AD distance.")
         d = ones(Int64,15)*1e6
 
@@ -115,7 +115,7 @@ function calc_distance_Kepler(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, re
         append!(M_cat_obs, k*ones(Int64, ss1.stat["num n-tranet systems"][k]))
     end
 
-    if min(length(ss1.stat["radius_ratio_above_list"]), length(ss1.stat["radius_ratio_below_list"]), length(ss1.stat["radius_ratio_across_list"])) < 2 #need at least 2 elements in each of these summary statistics in order to be able to compute AD distances
+    if min(length(ss1.stat["radius_ratio_above_list"]), length(ss1.stat["radius_ratio_below_list"]), length(ss1.stat["radius_ratio_across_list"]), length(ss1.stat["duration_ratio_non_mmr_list"]), length(ss1.stat["duration_ratio_near_mmr_list"])) < 2 #need at least 2 elements in each of these summary statistics in order to be able to compute AD distances
         println("Not enough observed multi-planet systems in the simulated catalog.")
         d = ones(Int64,15)*1e6
 
