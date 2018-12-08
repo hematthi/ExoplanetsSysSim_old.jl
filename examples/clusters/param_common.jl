@@ -45,6 +45,7 @@ function setup_sim_param_model(args::Vector{String} = Array{String}(undef, 0) ) 
   # generate_num_planets_in_cluster currently use these for the Inclination distribution
   add_param_fixed(sim_param,"resonance_width",0.05)
   add_param_fixed(sim_param,"period_ratios_mmr",[2.0, 1.5, 4/3, 5/4])
+  add_param_active(sim_param,"f_high_incl",0.2) # fraction of systems with higher mutual inclinations
   add_param_active(sim_param,"sigma_incl",1.5) # degrees; 0 = coplanar w/ generate_kepler_target_simple; ignored by generate_planetary_system_uncorrelated_incl
   add_param_active(sim_param,"sigma_incl_near_mmr",1.5)
 

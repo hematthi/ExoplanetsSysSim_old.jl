@@ -290,6 +290,9 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
     sigma_incl = deg2rad(get_real(sim_param, "sigma_incl"))
     sigma_incl_near_mmr = deg2rad(get_real(sim_param, "sigma_incl_near_mmr"))
     max_incl_sys = get_real(sim_param, "max_incl_sys")
+    f_high_incl = get_real(sim_param, "f_high_incl")
+
+    sigma_incl_use = rand() < f_high_incl ? max(sigma_incl, sigma_incl_near_mmr) : min(sigma_incl, sigma_incl_near_mmr)
 
     pl = Array{Planet}(undef, num_pl)
     orbit = Array{Orbit}(undef, num_pl)
@@ -303,8 +306,8 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
         end
         =#
 
-        sigma_incl_use = is_near_resonance[i] ? sigma_incl_near_mmr : sigma_incl
-        incl_mut = sigma_incl_use*sqrt(randn()^2+randn()^2) # rand(Distributions.Rayleigh(sigma_incl))
+        #####sigma_incl_use = is_near_resonance[i] ? sigma_incl_near_mmr : sigma_incl
+        incl_mut = sigma_incl_use*sqrt(randn()^2+randn()^2) # rand(Distributions.Rayleigh(sigma_incl_use))
         asc_node = 2pi*rand()
         mean_anom = 2pi*rand()
         incl = incl_mut!=zero(incl_mut) ? acos(cos(incl_sys)*cos(incl_mut) + sin(incl_sys)*sin(incl_mut)*cos(asc_node)) : incl_sys

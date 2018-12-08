@@ -30,9 +30,17 @@ function calc_distance(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, ss2::Exop
         end
 
         if all_dist
-            return d
+            if return_KS_or_AD == "KS" || return_KS_or_AD == "AD"
+                return d
+            elseif return_KS_or_AD == "Both"
+                return [d; d[3:end]]
+            end
         else
-            return sum(d)
+            if return_KS_or_AD == "KS" || return_KS_or_AD == "AD"
+                return sum(d)
+            elseif return_KS_or_AD == "Both"
+                return sum([d; d[3:end]])
+            end
         end
     end
 
@@ -95,12 +103,16 @@ function calc_distance(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, ss2::Exop
             return d_KS
         elseif return_KS_or_AD == "AD"
             return d_AD
+        elseif return_KS_or_AD == "Both"
+            return [d_KS; d_AD[3:end]]
         end
     else
         if return_KS_or_AD == "KS"
             return sum(d_KS)
         elseif return_KS_or_AD == "AD"
             return sum(d_AD)
+        elseif return_KS_or_AD == "Both"
+            return sum([d_KS; d_AD[3:end]])
         end
     end
 end
@@ -126,9 +138,17 @@ function calc_distance_Kepler(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, re
         end
 
         if all_dist
-            return d
+            if return_KS_or_AD == "KS" || return_KS_or_AD == "AD"
+                return d
+            elseif return_KS_or_AD == "Both"
+                return [d; d[3:end]]
+            end
         else
-            return sum(d)
+            if return_KS_or_AD == "KS" || return_KS_or_AD == "AD"
+                return sum(d)
+            elseif return_KS_or_AD == "Both"
+                return sum([d; d[3:end]])
+            end
         end
     end
 
@@ -191,12 +211,16 @@ function calc_distance_Kepler(ss1::ExoplanetsSysSim.CatalogSummaryStatistics, re
             return d_KS
         elseif return_KS_or_AD == "AD"
             return d_AD
+        elseif return_KS_or_AD == "Both"
+            return [d_KS; d_AD[3:end]]
         end
     else
         if return_KS_or_AD == "KS"
             return sum(d_KS)
         elseif return_KS_or_AD == "AD"
             return sum(d_AD)
+        elseif return_KS_or_AD == "Both"
+            return sum([d_KS; d_AD[3:end]])
         end
     end
 end
@@ -268,7 +292,7 @@ function compute_weights_target_fitness_std_perfect_model(num_evals::Int64, use_
         end
         weights[dists_exclude] .= 0. #to exclude certain distances from being used in the total distance function (but still computing and saving them during the optimization) by setting their weights to zero
 
-        weighted_dists_true = zeros(num_evals,15)
+        weighted_dists_true = zeros(num_evals,length(weights))
         for i in 1:num_evals
             weighted_dists_true[i,:] = dists_true[i,:]  .* weights
         end
