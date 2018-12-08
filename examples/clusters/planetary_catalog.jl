@@ -175,3 +175,5 @@ for i in 1:length(KOI_systems)
         end
     end
 end
+
+Nmult_confirmed = [sum(M_confirmed .== k) for k in 1:maximum(M_confirmed)]
