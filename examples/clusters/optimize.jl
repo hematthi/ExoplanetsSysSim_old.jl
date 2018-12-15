@@ -17,10 +17,10 @@ optimization_number = "_random"*ARGS[1] #if want to run on the cluster with rand
 use_KS_or_AD = "KS" #'KS' or 'AD' or 'Both' (need to be careful counting indices for 'dists_exclude'!!!)
 AD_mod = true
 Kep_or_Sim = "Kep" #'Kep' or 'Sim'
-num_targs = 80006
+num_targs = 200015
 max_evals = 5000
-num_evals_weights = 20
-dists_exclude = [7,8,10,11,13,14,15] #Int64[] if want to include all distances
+num_evals_weights = 100
+dists_exclude = [3,4,9,10,12,13,15,16,17] #Int64[] if want to include all distances
 Pop_per_param = 4
 
 file_name = model_name*optimization_number*"_targs"*string(num_targs)*"_evals"*string(max_evals)*".txt"
@@ -48,7 +48,6 @@ add_param_fixed(sim_param,"num_targets_sim_pass_one", num_targs)
 add_param_fixed(sim_param,"max_incl_sys", 60.0) #degrees; 0 (deg) for isotropic system inclinations; set closer to 90 (deg) for more transiting systems
 
 active_param_true, weights, target_fitness, target_fitness_std = compute_weights_target_fitness_std_perfect_model(num_evals_weights, use_KS_or_AD ; AD_mod=AD_mod, weight=true, dists_exclude=dists_exclude, save_dist=true)
-
 
 
 
@@ -96,6 +95,7 @@ println(f, "# Format: Dist: [distances][total distance]")
 println(f, "# Format: Dist_weighted: [weighted distances][total weighted distance]")
 println(f, "# Distances used: ", use_KS_or_AD)
 println(f, "# AD_mod: ", AD_mod)
+println(f, "#")
 
 target_function(active_param_start, use_KS_or_AD, Kep_or_Sim ; AD_mod=AD_mod, weights=weights, all_dist=false, save_dist=true) #to simulate the model once with the drawn parameters before starting the optimization
 #target_function_transformed_params(active_param_transformed_start, transformed_indices, transformed_triangle[1], transformed_triangle[2], transformed_triangle[3], use_KS_or_AD, Kep_or_Sim ; AD_mod=AD_mod, weights=weights, all_dist=false, save_dist=true) #to simulate the model once with the drawn parameters before starting the optimization
