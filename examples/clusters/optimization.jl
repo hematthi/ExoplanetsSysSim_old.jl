@@ -355,6 +355,71 @@ function compute_weights_target_fitness_std_perfect_model(num_evals::Int64, use_
     return (active_param_true, weights, mean_weighted_dist, std_weighted_dist)
 end
 
+function compute_weights_target_fitness_std_from_file(file_name::String, use_KS_or_AD::String ; weight::Bool=true, dists_exclude::Vector{Int64}=Int64[], save_dist::Bool=true)
+    t_elapsed = @elapsed begin
+        active_param_true = make_vector_of_sim_param(sim_param)
+        println("# True values: ", active_param_true)
+
+        dists_true = zeros(1000,17)
+        open(file_name) do f_weights
+            eval_count = 1
+            for (i,line) in enumerate(eachline(f_weights))
+                if length(line) > 8
+                    if line[1:7] == "Dist_"*use_KS_or_AD
+                        dists_str, sum_str = split(line[11:end-1], "][")
+                        dists_true[eval_count,:] = [parse(Float64, x) for x in split(dists_str, ", ")]
+                        eval_count += 1
+                    end
+                end
+            end
+        end
+
+        mean_dists = transpose(mean(dists_true, dims=1))[:,] #array of mean distances for each individual distance
+        mean_dist = mean(sum(dists_true, dims=2)) #mean total distance
+        #std_dists = transpose(std(dists_true, 1))[:,] #array of std distances for each individual distance
+        rms_dists = transpose(sqrt.(mean(dists_true .^2, dims=1)))[:,] #array of rms (std around 0)  distances for each individual distance
+        std_dist = std(sum(dists_true, dims=2)) #std of total distance
+        rms_dist = sqrt(mean(sum(dists_true, dims=2) .^2)) #rms (std around 0) of total distance; should be similar to the mean total distance
+
+        if weight
+            weights = 1 ./ rms_dists #to use the array 'rms_dists' as the weights for the individual distances
+        else
+            weights = ones(17)
+        end
+        weights[dists_exclude] .= 0. #to exclude certain distances from being used in the total distance function (but still computing and saving them during the optimization) by setting their weights to zero
+
+        weighted_dists_true = zeros(1000,length(weights))
+        for i in 1:1000
+            weighted_dists_true[i,:] = dists_true[i,:]  .* weights
+        end
+        mean_weighted_dists = transpose(mean(weighted_dists_true, dims=1))[:,] #array of mean weighted distances for each individual distance
+        mean_weighted_dist = mean(sum(weighted_dists_true, dims=2)) #mean weighted total distance
+        std_weighted_dist = std(sum(weighted_dists_true, dims=2)) #std of weighted total distance
+    end
+
+    println("# Using weights from pre-computed file:")
+    println("Mean dists: ", mean_dists)
+    println("Rms dists: ", rms_dists)
+    println("Weights (1/rms dists): ", weights)
+    println("Mean weighted dists: ", mean_weighted_dists)
+    println("Distance using true values: ", mean_dist, " +/- ", std_dist)
+    println("Weighted distance using true values: ", mean_weighted_dist, " +/- ", std_weighted_dist)
+    if save_dist
+        println(f, "#")
+        println(f, "# Using weights from pre-computed file:")
+        println(f, "Mean: ", mean_dists, [mean_dist])
+        println(f, "Rms: ", rms_dists, [rms_dist])
+        println(f, "Weights (1/rms dists): ", weights)
+        println(f, "Mean weighted dists: ", mean_weighted_dists, [mean_weighted_dist])
+        println(f, "# Distance using true values (default parameter values): ", mean_dist, " +/- ", std_dist)
+        println(f, "# Weighted distance using true values (default parameter values): ", mean_weighted_dist, " +/- ", std_weighted_dist)
+        println(f, "# elapsed time: ", t_elapsed, " seconds")
+        println(f, "#")
+    end
+
+    return (active_param_true, weights, mean_weighted_dist, std_weighted_dist)
+end
+
 function map_square_to_triangle(r1::Float64, r2::Float64, A::Vector{Float64}, B::Vector{Float64}, C::Vector{Float64})
     #This function takes in a point (r1,r2) in the unit square (i.e. r1,r2 in [0,1]) and maps it to a point P=(x,y) in the triangle defined by vertices A,B,C
     #If r1,r2 are uniformly drawn in [0,1], then the point P=(x,y) is also uniformly drawn in the triangle; see http://www.cs.princeton.edu/~funk/tog02.pdf (Section 4.2) for a reference
