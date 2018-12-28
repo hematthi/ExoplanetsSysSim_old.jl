@@ -21,7 +21,7 @@ function setup_sim_param_model(args::Vector{String} = Array{String}(undef, 0)) #
     add_param_fixed(sim_param,"window_function", "DR25topwinfuncs.jld2")
 
     # For generating planetary system properties:
-    add_param_fixed(sim_param,"generate_planetary_system", generate_planetary_system_clustered)
+    add_param_fixed(sim_param,"generate_planetary_system", generate_planetary_system_clustered) # For Non-clustered model: "generate_planetary_system_non_clustered"
 
     add_param_fixed(sim_param,"generate_num_clusters", generate_num_clusters_poisson)
     add_param_fixed(sim_param,"generate_num_planets_in_cluster", generate_num_planets_in_cluster_poisson)
@@ -31,6 +31,7 @@ function setup_sim_param_model(args::Vector{String} = Array{String}(undef, 0)) #
     add_param_fixed(sim_param,"max_planets_in_cluster", 10)
 
     # Generate_num_planets_in_cluster currently calls:
+    add_param_fixed(sim_param,"generate_periods", ExoplanetsSysSim.generate_periods_power_law)
     add_param_fixed(sim_param,"generate_sizes", ExoplanetsSysSim.generate_sizes_broken_power_law) # To choose the way we draw planetary radii; if "generate_sizes_power_law", then takes "power_law_r"; if "generate_sizes_broken_power_law", then takes "power_law_r1", "power_law_r2", and "break_radius"
     add_param_active(sim_param,"power_law_P", -0.5)
     #add_param_fixed(sim_param,"power_law_r", -2.5)
@@ -98,8 +99,10 @@ function write_model_params(f, sim_param::SimParam)
     println(f, "# max_incl_sys: ", get_real(sim_param,"max_incl_sys"))
     println(f, "# log_rate_clusters: ", get_real(sim_param,"log_rate_clusters"))
     println(f, "# max_clusters_in_sys: ", get_int(sim_param,"max_clusters_in_sys"))
-    println(f, "# log_rate_planets_per_cluster: ", get_real(sim_param,"log_rate_planets_per_cluster"))
-    println(f, "# max_planets_in_clusters: ", get_int(sim_param,"max_planets_in_cluster"))
+    if string(get_function(sim_param,"generate_planetary_system")) == "generate_planetary_system_clustered"
+        println(f, "# log_rate_planets_per_cluster: ", get_real(sim_param,"log_rate_planets_per_cluster"))
+        println(f, "# max_planets_in_clusters: ", get_int(sim_param,"max_planets_in_cluster"))
+    end
     println(f, "# power_law_P: ", get_real(sim_param,"power_law_P"))
     println(f, "# min_period: ", get_real(sim_param,"min_period"))
     println(f, "# max_period: ", get_real(sim_param,"max_period"))
@@ -129,7 +132,9 @@ function write_model_params(f, sim_param::SimParam)
         println(f, "# mr_model: Ning2018_table")
     end
 
-    println(f, "# sigma_log_radius_in_cluster: ", get_real(sim_param,"sigma_log_radius_in_cluster"))
-    println(f, "# sigma_logperiod_per_pl_in_cluster: ", get_real(sim_param,"sigma_logperiod_per_pl_in_cluster"))
+    if string(get_function(sim_param,"generate_planetary_system")) == "generate_planetary_system_clustered"
+        println(f, "# sigma_log_radius_in_cluster: ", get_real(sim_param,"sigma_log_radius_in_cluster"))
+        println(f, "# sigma_logperiod_per_pl_in_cluster: ", get_real(sim_param,"sigma_logperiod_per_pl_in_cluster"))
+    end
     println(f, "#")
 end
