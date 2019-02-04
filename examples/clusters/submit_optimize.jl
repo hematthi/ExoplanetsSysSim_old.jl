@@ -13,6 +13,7 @@ function write_pbs(job_basename, run_number)
     println(f, "")
     println(f, "cd \$PBS_O_WORKDIR")
     println(f, "")
+    println(f, "setenv JULIA_DEPOT_PATH /gpfs/group/ebf11/default/myh7/julia_pkgdir/") # Point to where we installed things for Julia and are developing ExoplanetsSysSim
     println(f, "/gpfs/group/ebf11/default/sw/julia-0.7.0/bin/julia optimize.jl "*string(run_number))
     close(f)
 end
