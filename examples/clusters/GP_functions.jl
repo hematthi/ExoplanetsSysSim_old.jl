@@ -97,28 +97,52 @@ function draw_from_posterior_given_precomputed_kernel_from_data(xpoints::Array{F
     return mu, stdv, f_posterior
 end
 
-function predict_model_at_n_points_from_uniform_prior_fast(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_draws::Int64)
-    # This function uses a GP model (i.e. a given kernel and set of hyperparameters) and a set of data points, to compute the mean, standard deviation, and a draw from the posterior at each point drawn from a uniform prior for 'n_draws' points
-    @assert size(xdata)[2] == length(params_names)
+function predict_mean_std_on_2d_grid(i::Int64, j::Int64, xi_axis::Vector{Float64}, xj_axis::Vector{Float64}, xmin::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, kernel::Function, hparams::Vector{Float64})
+    # This function uses a GP model (i.e. a given kernel and set of hyperparameters), an estimate for the best-fit point 'xmin', and a set of data points, to compute the mean and standard deviation along a 2d grid of parameters for the i-th and j-th parameters (holding all the other parameters fixed at 'xmin')
+    @assert size(xdata)[2] == length(xmin)
+    @assert size(xdata)[1] == length(ydata)
+    dims = length(xmin)
+    @assert 1 <= i <= dims
+    @assert 1 <= j <= dims
+
+    mean_2d_grid = Array{Float64,2}(undef, length(xi_axis), length(xj_axis))
+    std_2d_grid = Array{Float64,2}(undef, length(xi_axis), length(xj_axis))
+    for (k,xi) in enumerate(xi_axis)
+        for (l,xj) in enumerate(xj_axis)
+            xpoint = copy(xmin)
+            xpoint[[i,j]] = [xi, xj]
+            mean, std, draw = [draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xdata, ydata, L, kernel, hparams)[x][1] for x in 1:3]
+            mean_2d_grid[k,l] = mean
+            std_2d_grid[k,l] = std
+        end
+    end
+
+    return mean_2d_grid, std_2d_grid
+end
+
+function predict_mean_std_on_2d_grids_all_combinations(params_names::Array{Symbol,1}, xmin::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}; grid_dims::Int64=20)
+    # This function uses a GP model (i.e. a given kernel and set of hyperparameters), an estimate for the best-fit point 'xmin', and a set of data points, to compute the mean and standard deviation along 2d grids of parameters for all possible combinations of the parameters (holding all the other parameters fixed at 'xmin')
+    @assert size(xdata)[2] == length(xmin) == length(params_names)
     @assert size(xdata)[1] == length(ydata) == length(ydata_err)
     dims = length(params_names)
 
     xtrain_mins, xtrain_maxs = findmin(xdata, dims=1)[1], findmax(xdata, dims=1)[1]
-    prior_bounds = [(xtrain_mins[i], xtrain_maxs[i]) for i in 1:dims] # To prevent predicting "outside" of the n-dim box of training points
 
     L = compute_kernel_given_data(xdata, kernel, hparams; ydata_err=ydata_err)
 
-    prior_draws = Array{Float64,2}(undef, n_draws, dims)
+    mean_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, sum(1:dims-1))
+    std_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, sum(1:dims-1))
+    grid_count = 1 # To index how many 2d grids are computed
     for i in 1:dims
-        prior_draws[1:end, i] .= prior_bounds[i][1] .+ (prior_bounds[i][2] - prior_bounds[i][1]).*rand(n_draws) # This is assuming a uniform prior over the range for each parameter
+        for j in 1:i-1
+            xi_axis = convert(Vector{Float64}, range(xtrain_mins[i], stop=xtrain_maxs[i], length=grid_dims))
+            xj_axis = convert(Vector{Float64}, range(xtrain_mins[j], stop=xtrain_maxs[j], length=grid_dims))
+            mean_2d_grids[:,:,grid_count], std_2d_grids[:,:,grid_count] = predict_mean_std_on_2d_grid(i, j, xi_axis, xj_axis, xmin, xdata, ydata, L, kernel, hparams)
+            grid_count += 1
+        end
     end
 
-    GP_results = map(i -> draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draws[i,:], (1,dims)), xdata, ydata, L, kernel, hparams_best), 1:n_draws)
-    GP_results = [x[i][1] for x in GP_results, i in 1:3]
-    mu_draws, stdv_draws, f_posterior_draws = GP_results[:,1], GP_results[:,2], GP_results[:,3]
-
-    prior_draws_GP_table = [prior_draws mu_draws stdv_draws f_posterior_draws]
-    return DataFrame(prior_draws_GP_table, [params_names; [:GP_mean, :GP_std, :GP_posterior_draw]])
+    return DataFrame(transpose(reshape(mean_2d_grids, (grid_dims, grid_dims*sum(1:dims-1))))), DataFrame(transpose(reshape(std_2d_grids, (grid_dims, grid_dims*sum(1:dims-1)))))
 end
 
 function predict_model_at_n_points_from_uniform_prior(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_draws::Int64)
@@ -134,11 +158,41 @@ function predict_model_at_n_points_from_uniform_prior(params_names::Array{Symbol
 
     prior_draws_GP_table = Array{Float64,2}(undef, n_draws, dims+3)
     for i in 1:n_draws
-        #prior_draw = map(j -> prior_bounds[j][1] + (prior_bounds[j][2] - prior_bounds[j][1])*rand(), 1:dims)
-        #prior_draws_GP_table[i, 1:end] = [prior_draw; [draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draw, (1,dims)), xdata, ydata, L, kernel, hparams_best)[j][1] for j in 1:3]]
         prior_draws_GP_table[i, 1:dims] = map(j -> prior_bounds[j][1] + (prior_bounds[j][2] - prior_bounds[j][1])*rand(), 1:dims)
-        prior_draws_GP_table[i, dims+1:dims+3] = [draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draws_GP_table[i, 1:dims], (1,dims)), xdata, ydata, L, kernel, hparams_best)[j][1] for j in 1:3]
+        GP_result = draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draws_GP_table[i, 1:dims], (1,dims)), xdata, ydata, L, kernel, hparams)
+        prior_draws_GP_table[i, dims+1:dims+3] = [GP_result[j][1] for j in 1:3]
     end
+
+    return DataFrame(prior_draws_GP_table, [params_names; [:GP_mean, :GP_std, :GP_posterior_draw]])
+end
+
+function predict_model_from_uniform_prior_until_accept_n_points(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; max_mean::Float64=Inf, max_std::Float64=Inf)
+    # This function uses a GP model (i.e. a given kernel and set of hyperparameters) and a set of data points, to compute the mean, standard deviation, and a draw from the posterior at points drawn from a uniform prior until 'n_accept' points passing the criteria for mean and std are accepted
+    @assert size(xdata)[2] == length(params_names)
+    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    dims = length(params_names)
+
+    xtrain_mins, xtrain_maxs = findmin(xdata, dims=1)[1], findmax(xdata, dims=1)[1]
+    prior_bounds = [(xtrain_mins[i], xtrain_maxs[i]) for i in 1:dims] # To prevent predicting "outside" of the n-dim box of training points
+
+    L = compute_kernel_given_data(xdata, kernel, hparams; ydata_err=ydata_err)
+
+    prior_draws_GP_table = Array{Float64,2}(undef, n_accept, dims+3)
+    count_accepted = 0
+    count_draws = 0
+    while count_accepted < n_accept
+        prior_draw = map(j -> prior_bounds[j][1] + (prior_bounds[j][2] - prior_bounds[j][1])*rand(), 1:dims)
+        GP_result = draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draw, (1,dims)), xdata, ydata, L, kernel, hparams)
+        count_draws += 1
+        if GP_result[1][1] < max_mean && GP_result[2][1] < max_std
+            count_accepted += 1
+            prior_draws_GP_table[count_accepted, 1:end] = [prior_draw; [GP_result[j][1] for j in 1:3]]
+            if count_accepted == 10 # To give an idea of what percentage of points are being accepted
+                println("First 10 points accepted after ", count_draws, " draws...")
+            end
+        end
+    end
+    println("Accepted ", count_accepted, " points after ", count_draws, " draws.")
 
     return DataFrame(prior_draws_GP_table, [params_names; [:GP_mean, :GP_std, :GP_posterior_draw]])
 end

@@ -5,6 +5,7 @@ using Statistics
 using Plots
 using Random
 using DataFrames
+using Optim
 using CSV
 
 include("GP_functions.jl")
@@ -71,8 +72,6 @@ ytrain_err, ycheck_err = ydata_err[i_train], ydata_err[i_check]
 
 
 # To optimize the hyperparameters, plot the resulting GP model, and assess the fit of the model:
-using Optim
-
 #=
 hparams_lower = [1e-1; 0.01*ones(dims)]
 hparams_upper = [10.; 10*ones(dims)]
@@ -144,6 +143,7 @@ println("Median data point: ", xmin_guess)
 
 L = compute_kernel_given_data(xtrain, kernel_SE_ndims, hparams_best; ydata_err=ytrain_err)
 
+#=
 Random.seed!()
 
 @time result1 = optimize(xpoint -> draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xtrain, ytrain, L, kernel_SE_ndims, hparams_best)[1][1], xmin_guess, BFGS()) # unconstrained, no gradient
@@ -152,19 +152,50 @@ Random.seed!()
 
 println("Best (xpoint, GP_mean): ", (Optim.minimizer(result1), Optim.minimum(result1)))
 println("Best (xpoint, GP_mean): ", (Optim.minimizer(result2), Optim.minimum(result2)))
+=#
 
 
 
 
 
 #=
+# To use the optimized GP model to predict on a series of 2d grids of points, with the other dimensions (model parameters) set to best-fit values:
+
+grid_dims = 50
+@time mean_2d_grids_stacked, std_2d_grids_stacked = predict_mean_std_on_2d_grids_all_combinations(params_names, reshape(xmin_guess, dims), xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err; grid_dims=grid_dims)
+
+file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_2d_grids_"*string(grid_dims)*"x"*string(grid_dims)*"_mean.csv"
+f = open(file_name, "w")
+println(f, "#xlower:"*string(xdata_lower))
+println(f, "#xupper:"*string(xdata_upper))
+CSV.write(f, mean_2d_grids_stacked; append=true)
+close(f)
+
+file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_2d_grids_"*string(grid_dims)*"x"*string(grid_dims)*"_std.csv"
+f = open(file_name, "w")
+println(f, "#xlower:"*string(xdata_lower))
+println(f, "#xupper:"*string(xdata_upper))
+CSV.write(f, std_2d_grids_stacked; append=true)
+close(f)
+=#
+
+
+
+
+
+#
 # To use the optimized GP model to predict at a large number of points drawn from the prior:
 
 n_draws = 1000
-
-@time prior_draws_GP_table = predict_model_at_n_points_from_uniform_prior_fast(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_draws)
-@time prior_draws_GP_table = predict_model_at_n_points_from_uniform_prior(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_draws)
+@time prior_draws_GP_table = predict_model_from_uniform_prior_until_accept_n_points(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_draws)
 
 file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_prior_draws"*string(n_draws)*".csv"
-CSV.write(file_name, prior_draws_GP_table)
-=#
+#CSV.write(file_name, prior_draws_GP_table)
+
+n_accept = 10000
+mean_cut, std_cut = 3., 0.5
+#@time prior_draws_GP_table = predict_model_from_uniform_prior_until_accept_n_points(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_accept; max_mean=mean_cut, max_std=std_cut)
+
+file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_prior_draws_accepted"*string(n_accept)*"_mean_cut"*string(mean_cut)*"_std_cut"*string(std_cut)*".csv"
+#CSV.write(file_name, prior_draws_GP_table)
+#
