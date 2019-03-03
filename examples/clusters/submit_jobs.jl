@@ -1,6 +1,6 @@
-'''
+"""
 Given a file "f", writes our default PBS script settings to the file.
-'''
+"""
 function write_pbs_settings(f)
     println(f, "#!/bin/tcsh")
     println(f, "#PBS -A ebf11_a_g_sc_default")
@@ -16,9 +16,9 @@ function write_pbs_settings(f)
     println(f, "setenv JULIA_DEPOT_PATH /gpfs/group/ebf11/default/myh7/julia_pkgdir/") # Point to where we installed things for Julia and are developing ExoplanetsSysSim
 end
 
-'''
+"""
 Generates a PBS script for running "optimize.jl".
-'''
+"""
 function generate_pbs_optimize(run_number)
     f_name = "optimize_job_"*string(run_number)*".pbs"
     f = open(f_name, "w")
@@ -29,9 +29,9 @@ function generate_pbs_optimize(run_number)
     return f_name
 end
 
-'''
+"""
 Generates and submits "n_jobs" of PBS scripts to run "optimize.jl".
-'''
+"""
 function submit_jobs_optimize(n_jobs::Int64)
     for i in 1:n_jobs
         f_name = generate_pbs_optimize(i)
@@ -40,9 +40,9 @@ function submit_jobs_optimize(n_jobs::Int64)
     end
 end
 
-'''
+"""
 Generates a PBS script for running "generate_pbs_compute_distances_given_params_random.jl".
-'''
+"""
 function generate_pbs_compute_distances_given_params_random(run_number)
     f_name = "compute_distances_random_job_"*string(run_number)*".pbs"
     f = open(f_name, "w")
@@ -53,9 +53,9 @@ function generate_pbs_compute_distances_given_params_random(run_number)
     return f_name
 end
 
-'''
+"""
 Generates and submits "n_jobs" of PBS scripts to run "generate_pbs_compute_distances_given_params_random.jl".
-'''
+"""
 function submit_jobs_compute_distances_given_params_random(n_jobs::Int64)
     for i in 1:n_jobs
         f_name = generate_pbs_compute_distances_given_params_random(i)
