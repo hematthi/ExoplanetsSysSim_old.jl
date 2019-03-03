@@ -309,11 +309,11 @@ function generate_planetary_system_clustered(star::StarAbstract, sim_param::SimP
 
         #####sigma_incl_use = is_near_resonance[i] ? sigma_incl_near_mmr : sigma_incl
         incl_mut = sigma_incl_use*sqrt(randn()^2+randn()^2) # rand(Distributions.Rayleigh(sigma_incl_use))
-        #=
+        #
         if is_near_resonance[i]
             incl_mut = min(sigma_incl, sigma_incl_near_mmr)*sqrt(randn()^2+randn()^2)
         end
-        =#
+        #
         asc_node = 2pi*rand()
         mean_anom = 2pi*rand()
         incl = incl_mut!=zero(incl_mut) ? acos(cos(incl_sys)*cos(incl_mut) + sin(incl_sys)*sin(incl_mut)*cos(asc_node)) : incl_sys
@@ -437,11 +437,11 @@ function generate_planetary_system_non_clustered(star::StarAbstract, sim_param::
 
         #####sigma_incl_use = is_near_resonance[i] ? sigma_incl_near_mmr : sigma_incl
         incl_mut = sigma_incl_use*sqrt(randn()^2+randn()^2) # rand(Distributions.Rayleigh(sigma_incl_use))
-        #=
+        #
         if is_near_resonance[i]
             incl_mut = min(sigma_incl, sigma_incl_near_mmr)*sqrt(randn()^2+randn()^2)
         end
-        =#
+        #
         asc_node = 2pi*rand()
         mean_anom = 2pi*rand()
         incl = incl_mut!=zero(incl_mut) ? acos(cos(incl_sys)*cos(incl_mut) + sin(incl_sys)*sin(incl_mut)*cos(asc_node)) : incl_sys
