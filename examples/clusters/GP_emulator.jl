@@ -1,16 +1,11 @@
 ##### GP regression to fit to the results of the model optimization (fit GP model to the distance of the model compared to the Kepler data as a function of the model parameters)
 
-using LinearAlgebra
-using Statistics
-using Plots
-using Random
-using DataFrames
-using Optim
-using CSV
-
 include("GP_functions.jl")
 
-make_plots = false
+using Plots
+using Optim
+
+make_plots = true
 
 
 
@@ -18,11 +13,17 @@ make_plots = false
 
 # To load in the data:
 
-data_table_original = CSV.read("GP_files/Active_params_distances_table_best100000_every10.txt", delim=" ", allowmissing=:none)
-data_table_recomputed = CSV.read("GP_files/Active_params_distances_recomputed_table_best100000_every10.txt", delim=" ", allowmissing=:none)
+#data_path = "GP_files"
+data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Clustered_P_R/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some11_params_KSweightedrms/lc_lp_0p5_5_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90_sigmaR_0_0p5_sigmaP_0_0p3/Fixed_Rbreak3_Ncrit8/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr"
+#data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Clustered_P/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some10_params_KSweightedrms/Fixed_Rbreak3_Ncrit8/lc_lp_0p5_5_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90_sigmaP_0_0p3/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr"
+#data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Non_Clustered/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some8_params_KSweightedrms/Fixed_Rbreak3_Ncrit8/lc_1_10_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr"
 
-params_names = names(data_table_recomputed)[1:10]
-dists_names = names(data_table_recomputed)[11:23]
+data_table_original = CSV.read(joinpath(data_path,"Active_params_distances_table_best100000_every10.txt"), delim=" ", allowmissing=:none)
+data_table_recomputed = CSV.read(joinpath(data_path,"Active_params_distances_recomputed_table_best100000_every10.txt"), delim=" ", allowmissing=:none)
+#data_table_recomputed = CSV.read("GP_files/Active_params_distances_table_best388529_every1.txt", delim=" ", allowmissing=:none)[1:388000,:]
+
+params_names = names(data_table_recomputed)[1:11]
+dists_names = names(data_table_recomputed)[12:end]
 
 params_array_original = convert(Matrix, data_table_original[1:end, params_names])
 dist_array_original = convert(Array, data_table_original[1:end, :dist_tot_weighted])
@@ -41,8 +42,8 @@ if make_plots
     fig = histogram([dist_array_original dist_array], fillalpha=0.5, xlabel="Distance", ylabel="Number of points", label=["Best distances during optimization", "Recomputed distances"])
     display(fig)
 
-    fig2 = histogram(reshape(dist_array, (div(length(dist_array), 5), 5)), fillalpha=0.5, xlabel="Distance", ylabel="Number of points")
-    display(fig2)
+    fig1 = histogram(reshape(dist_array, (div(length(dist_array), 5), 5)), fillalpha=0.5, xlabel="Distance", ylabel="Number of points")
+    display(fig1)
 end
 
 
@@ -54,57 +55,44 @@ Random.seed!(1234) # If we want the same set of training and CV points every tim
 
 n_data = 4000
 
-xdata = params_array[1:n_data, 1:end]
-mean_f = 15.
-ydata = dist_array[1:n_data] .- mean_f
+#i_data = Random.randperm(sum(dist_array .< Inf))[1:n_data]
+i_data = 1:n_data
+xdata = params_array[i_data, 1:end]
+mean_f = 22.
+ydata = dist_array[i_data] .- mean_f
 ydata_err = 0.8 .*ones(n_data)
 
 n_train = div(n_data, 2)
-n_check = n_data - n_train
-randperm_data = Random.randperm(n_data)
-i_train, i_check = randperm_data[1:n_train], randperm_data[n_train+1:end]
-xtrain, xcheck = xdata[i_train,1:dims], xdata[i_check,1:dims]
-ytrain, ycheck = ydata[i_train], ydata[i_check]
-ytrain_err, ycheck_err = ydata_err[i_train], ydata_err[i_check]
+xtrain, xcheck, ytrain, ycheck, ytrain_err, ycheck_err = split_data_training_cv(xdata, ydata, ydata_err; n_train=n_train)
+
+if make_plots
+    fig2 = histogram(ydata, fillalpha=0.5, xlabel="Distance - mean_f", ylabel="Number of points")
+    display(fig2)
+end
 
 
 
 
 
 # To optimize the hyperparameters, plot the resulting GP model, and assess the fit of the model:
-#=
-hparams_lower = [1e-1; 0.01*ones(dims)]
-hparams_upper = [10.; 10*ones(dims)]
+
 hparams_guess = [1.; ones(dims)]
+#hparams_best, log_p_best = optimize_hparams_with_MLE(hparams_guess, xtrain, ytrain, kernel_SE_ndims; ydata_err=ytrain_err)
 
-Random.seed!()
+# Clustered_P_R:
+hparams_best = [8.03106, -0.2036, 0.344798, 0.415796, -0.484306, -0.757346, 1.81563, -950.991, -36.9642, 0.851163, -0.159388, 395.641] # Clustered_P_R with 'n_data = 2000', 'mean_f = 30.'
+#hparams_best = [10., 0.3, 1.2, 1.5, 1.2, 1.8, 3., 0.03, 60., 1., 0.15, 0.1]
 
-#@time result1 = optimize(hparams -> -log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams_guess, BFGS()) #unconstrained, no gradient
+# Clustered_P:
+#hparams_best = [10., 0.3, 0.8, 1., 0.5, 0.8, 2., 0.03, 60., 1., 0.1]
 
-@time result2 = optimize(hparams -> -log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams -> -gradient_log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams_guess, BFGS(); inplace = false) #unconstrained, with gradient
+# Non_Clustered:
+#hparams_best = 4 .*[1.25, 0.05, 0.25, 0.1, 0.8, 1.5, 0.01, 60., 0.5]
 
-#@time result3 = optimize(hparams -> -log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams_lower, hparams_upper, hparams_guess, Fminbox(GradientDescent())) #constrained, no gradient
 
-#@time result4 = optimize(hparams -> -log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams -> -gradient_log_marginal_likelihood(xtrain, ytrain, kernel_SE_ndims, hparams; ydata_err=ytrain_err), hparams_lower, hparams_upper, hparams_guess, Fminbox(GradientDescent()); inplace = false) #constrained, with gradient
 
-#println("Best (hparams, log_p): ", (Optim.minimizer(result1), -Optim.minimum(result1)))
-println("Best (hparams, log_p): ", (Optim.minimizer(result2), -Optim.minimum(result2)))
-#println("Best (hparams, log_p): ", (Optim.minimizer(result3), -Optim.minimum(result3)))
-#println("Best (hparams, log_p): ", (Optim.minimizer(result4), -Optim.minimum(result4)))
 
-result = result2
-hparams_best = Optim.minimizer(result)
-log_p_best = -Optim.minimum(result)
-println("Best (hparams, log_p): ", (hparams_best, log_p_best))
-=#
 
-#hparams_best = [3.21594, -0.297917, -0.39717, 210.038, 48.4862, 1.78456, -201.024, 1.06141, 3.36472, 42.6757, -152.565] # 'n_data = 2000', 'mean_f = 15.'
-#hparams_best = [1.10519, 0.234453, -0.477346, 0.135724, 0.378424, 1.73346, -0.0134949, 0.73254, 1.43884, 0.0956221, -0.0308756] # 'n_data = 2000', 'mean_f = 18.'
-#hparams_best = [-1.76993, -0.272425, -0.507301, 0.327124, -0.383005, 1.45841, -0.023842, 1.16629, 3.04358, 0.137717, -0.0675467] # 'n_data = 2000', 'mean_f = 20.'
-#hparams_best = [1718.25, 480.398, 857.24, 793.841, 1249.0, 4191.11, 0.465114, 4457.53, 5526.83, -21.5877, 1.61524] # 'n_data = 2000', 'mean_f = 50'
-
-hparams_best = [25.6287, -5.27561, -1.40939, -10.0505, 2.40215, 5.89228, 1.08675, -3.03994, 12.2616, -13.3928, 3.42326] # 'n_data = 4000', 'mean_f = 15.'; OR
-#hparams_best = [-1.68505, 7.56876e6, 1.16479, 1.46191e7, 1.07758, 7.2004e7, -6.35001e6, 3.76568e7, 7.90991e7, 1.02692, -0.108351] # 'n_data = 4000', 'mean_f = 15.'
 
 # To predict at the training points:
 mu_train, stdv_train, f_posterior_train = draw_from_posterior_given_kernel_and_data(xtrain, xtrain, ytrain, kernel_SE_ndims, hparams_best; ydata_err = ytrain_err)
@@ -119,7 +107,7 @@ ydiff_cv = mu_cv - ycheck
 if make_plots
     fig3 = histogram([ydiff_train ydiff_cv], fillalpha=0.5, xlabel="Mean prediction - Data", ylabel="Number of points", label=["Training", "Cross-validation"])
 
-    fig4 = scatter([ytrain], [mu_train], markersize=1, xlabel="Data", ylabel="Mean prediction", label=["Training", "Cross-validation"])
+    fig4 = scatter([ytrain ycheck], [mu_train mu_cv], markersize=1, xlabel="Data", ylabel="Mean prediction", label=["Training", "Cross-validation"])
     plot!(range(0, stop=maximum(ycheck), length=100), range(0, stop=maximum(ycheck), length=100), label="Perfect prediction")
 
     fig5 = scatter([ydiff_train], [stdv_train], markersize=1, xlabel="Mean prediction - Data", ylabel="Uncertainty of prediction", label=["Training", "Cross-validation"])
@@ -129,73 +117,3 @@ if make_plots
     fig3_6 = plot(fig3,fig4,fig5,fig6, layout=(2,2), guidefontsize=8, legend=true, legendfontsize=4)
     display(fig3_6)
 end
-
-
-
-
-
-# To run an optimizer using the best GP model in order to find the point that minimizes the function (i.e. GP mean prediction):
-
-xdata_lower = minimum(xdata, dims=1)
-xdata_upper = maximum(xdata, dims=1)
-xmin_guess = Statistics.median(xdata, dims=1)
-println("Median data point: ", xmin_guess)
-
-L = compute_kernel_given_data(xtrain, kernel_SE_ndims, hparams_best; ydata_err=ytrain_err)
-
-#=
-Random.seed!()
-
-@time result1 = optimize(xpoint -> draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xtrain, ytrain, L, kernel_SE_ndims, hparams_best)[1][1], xmin_guess, BFGS()) # unconstrained, no gradient
-
-@time result2 = optimize(xpoint -> draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xtrain, ytrain, L, kernel_SE_ndims, hparams_best)[1][1], xdata_lower, xdata_upper, xmin_guess, Fminbox(GradientDescent())) # constrained, no gradient
-
-println("Best (xpoint, GP_mean): ", (Optim.minimizer(result1), Optim.minimum(result1)))
-println("Best (xpoint, GP_mean): ", (Optim.minimizer(result2), Optim.minimum(result2)))
-=#
-
-
-
-
-
-#=
-# To use the optimized GP model to predict on a series of 2d grids of points, with the other dimensions (model parameters) set to best-fit values:
-
-grid_dims = 50
-@time mean_2d_grids_stacked, std_2d_grids_stacked = predict_mean_std_on_2d_grids_all_combinations(params_names, reshape(xmin_guess, dims), xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err; grid_dims=grid_dims)
-
-file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_2d_grids_"*string(grid_dims)*"x"*string(grid_dims)*"_mean.csv"
-f = open(file_name, "w")
-println(f, "#xlower:"*string(xdata_lower))
-println(f, "#xupper:"*string(xdata_upper))
-CSV.write(f, mean_2d_grids_stacked; append=true)
-close(f)
-
-file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_2d_grids_"*string(grid_dims)*"x"*string(grid_dims)*"_std.csv"
-f = open(file_name, "w")
-println(f, "#xlower:"*string(xdata_lower))
-println(f, "#xupper:"*string(xdata_upper))
-CSV.write(f, std_2d_grids_stacked; append=true)
-close(f)
-=#
-
-
-
-
-
-#
-# To use the optimized GP model to predict at a large number of points drawn from the prior:
-
-n_draws = 1000
-@time prior_draws_GP_table = predict_model_from_uniform_prior_until_accept_n_points(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_draws)
-
-file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_prior_draws"*string(n_draws)*".csv"
-#CSV.write(file_name, prior_draws_GP_table)
-
-n_accept = 10000
-mean_cut, std_cut = 3., 0.5
-#@time prior_draws_GP_table = predict_model_from_uniform_prior_until_accept_n_points(params_names, xtrain, ytrain, kernel_SE_ndims, hparams_best, ytrain_err, n_accept; max_mean=mean_cut, max_std=std_cut)
-
-file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_prior_draws_accepted"*string(n_accept)*"_mean_cut"*string(mean_cut)*"_std_cut"*string(std_cut)*".csv"
-#CSV.write(file_name, prior_draws_GP_table)
-#

@@ -88,6 +88,30 @@ function submit_jobs_compute_distances_given_params_parallel(n_jobs::Int64)
     end
 end
 
+"""
+Generates a PBS script for running "GP_draw_points_parallel.jl".
+"""
+function generate_pbs_GP_draw_points_parallel(run_number)
+    f_name = "GP_draw_points_parallel_job_"*string(run_number)*".pbs"
+    f = open(f_name, "w")
+    write_pbs_settings(f)
+    println(f, "/gpfs/group/ebf11/default/sw/julia-0.7.0/bin/julia GP_draw_points_parallel.jl "*string(run_number))
+    close(f)
+
+    return f_name
+end
+
+"""
+Generates and submits "n_jobs" of PBS scripts to run "GP_draw_points_parallel.jl".
+"""
+function submit_jobs_GP_draw_points_parallel(n_jobs::Int64)
+    for i in 1:n_jobs
+        f_name = generate_pbs_GP_draw_points_parallel(i)
+        run(`qsub $f_name`) #this line submits the job by running 'qsub' in the command line!
+        println("Job ", f_name, " submitted.")
+    end
+end
+
 
 
 
@@ -101,3 +125,4 @@ n_jobs = 20 # total number of jobs to submit
 #submit_jobs_optimize(n_jobs)
 #submit_jobs_compute_distances_given_params_random(n_jobs)
 #submit_jobs_compute_distances_given_params_parallel(1)
+#submit_jobs_GP_draw_points_parallel(1)
