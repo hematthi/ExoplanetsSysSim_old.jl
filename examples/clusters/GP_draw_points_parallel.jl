@@ -26,6 +26,6 @@ mean_cut, std_cut = Inf, Inf
 file_name = "GP_files/GP_emulator_points"*string(n_train)*"_meanf"*string(mean_f)*"_prior_draws"*string(n_accept)*"_mean_cut"*string(mean_cut)*"_std_cut"*string(std_cut)*".csv"
 f = open(file_name, "w")
 println(f, "# hparams: ", hparams_best)
-CSV.write(f, prior_draws_GP_table; append=true)
+CSV.write(f, prior_draws_GP_table; append=true, writeheader=true)
 close(f)
 #
