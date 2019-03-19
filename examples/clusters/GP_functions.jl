@@ -28,9 +28,9 @@ Assumes the first element in 'hparams' is the amplitude and the rest are the len
 """
 function kernel_SE_ndims(xpoints1::Array{Float64,2}, xpoints2::Array{Float64,2}, hparams::Vector{Float64})
     sigma_f, lscales = hparams[1], hparams[2:end]
-    @assert length(lscales) == size(xpoints1)[2] == size(xpoints2)[2]
+    @assert length(lscales) == size(xpoints1, 2) == size(xpoints2, 2)
 
-    sqdist_normed = zeros(size(xpoints1)[1], size(xpoints2)[1])
+    sqdist_normed = zeros(size(xpoints1, 1), size(xpoints2, 1))
     for i in 1:length(lscales)
         sqdist_normed += (xpoints1[:,i].^2 .+ transpose(xpoints2[:,i].^2) .- 2*(xpoints1[:,i] .* transpose(xpoints2[:,i])))/(lscales[i]^2)
     end
@@ -50,7 +50,7 @@ function draw_from_prior_given_kernel(xpoints::Array{Float64,2}, kernel::Functio
 
     K_ss = kernel(xpoints, xpoints, hparams)
     L = transpose(cholesky(K_ss + diag_noise*I).U)
-    f_prior = L * randn(size(xpoints)[1], draws)
+    f_prior = L * randn(size(xpoints, 1), draws)
 
     return f_prior
 end
@@ -59,7 +59,7 @@ end
 Computes the GP model given a kernel and a set of data, by computing the mean and standard deviation of the prediction at the points provided, and also making a number of draws from the GP posterior.
 """
 function draw_from_posterior_given_kernel_and_data(xpoints::Array{Float64,2}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}; ydata_err::Vector{Float64}=zeros(length(ydata)), diag_noise::Float64=1e-5, draws::Integer=1)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
 
     K_ss = kernel(xpoints, xpoints, hparams)
     K_s = kernel(xdata, xpoints, hparams)
@@ -78,7 +78,7 @@ function draw_from_posterior_given_kernel_and_data(xpoints::Array{Float64,2}, xd
 
     # To draw samples from the posterior at our test points 'xpoints':
     L = transpose(cholesky(K_ss - (transpose(Lk) * Lk) + diag_noise*I).U) # NOTE: is it OK to add a diagonal term here to help avoid PosDefException error?
-    f_posterior = mu .+ (L * randn(size(xpoints)[1], draws))
+    f_posterior = mu .+ (L * randn(size(xpoints, 1), draws))
 
     # Returns the mean, std, and draws from the posterior at 'xpoints':
     return mu, stdv, f_posterior
@@ -88,7 +88,7 @@ end
 Computes the cholesky decomposition (triangular) matrix of a kernel given a dataset.
 """
 function compute_kernel_given_data(xdata::Array{Float64,2}, kernel::Function, hparams::Vector{Float64}; ydata_err::Vector{Float64}=zeros(length(ydata)))
-    @assert size(xdata)[1] == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata_err)
 
     K = kernel(xdata, xdata, hparams)
     var_I = zeros(size(K))
@@ -101,7 +101,7 @@ end
 Does the same thing as the function 'draw_from_posterior_given_kernel_and_data', but takes in a precomputed cholesky decomposition matrix 'L' to save time.
 """
 function draw_from_posterior_given_precomputed_kernel_from_data(xpoints::Array{Float64,2}, xdata::Array{Float64,2}, ydata::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, kernel::Function, hparams::Vector{Float64}; diag_noise::Float64=1e-5, draws::Integer=1)
-    @assert size(xdata)[1] == length(ydata)
+    @assert size(xdata, 1) == length(ydata)
 
     K_ss = kernel(xpoints, xpoints, hparams)
     K_s = kernel(xdata, xpoints, hparams)
@@ -116,7 +116,7 @@ function draw_from_posterior_given_precomputed_kernel_from_data(xpoints::Array{F
 
     # To draw samples from the posterior at our test points 'xpoints':
     L = transpose(cholesky(K_ss - (transpose(Lk) * Lk) + diag_noise*I).U) # NOTE: is it OK to add a diagonal term here to help avoid PosDefException error?
-    f_posterior = mu .+ (L * randn(size(xpoints)[1], draws))
+    f_posterior = mu .+ (L * randn(size(xpoints, 1), draws))
 
     # Returns the mean, std, and draws from the posterior at 'xpoints':
     return mu, stdv, f_posterior
@@ -125,9 +125,9 @@ end
 """
 Uses a GP model (i.e. a given kernel and set of hyperparameters), an estimate for the best-fit point 'xmin', and a set of data points, to compute the mean and standard deviation along a 2-d grid of parameters for the i-th and j-th parameters (holding all the other parameters fixed at 'xmin').
 """
-function predict_mean_std_on_2d_grid(i::Int64, j::Int64, xi_axis::Vector{Float64}, xj_axis::Vector{Float64}, xmin::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, kernel::Function, hparams::Vector{Float64})
-    @assert size(xdata)[2] == length(xmin)
-    @assert size(xdata)[1] == length(ydata)
+function predict_mean_std_on_2d_grid(i::Int64, j::Int64, xi_axis::AbstractRange, xj_axis::AbstractRange, xmin::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, kernel::Function, hparams::Vector{Float64})
+    @assert size(xdata, 2) == length(xmin)
+    @assert size(xdata, 1) == length(ydata)
     dims = length(xmin)
     @assert 1 <= i <= dims
     @assert 1 <= j <= dims
@@ -138,9 +138,9 @@ function predict_mean_std_on_2d_grid(i::Int64, j::Int64, xi_axis::Vector{Float64
         for (l,xj) in enumerate(xj_axis)
             xpoint = copy(xmin)
             xpoint[[i,j]] = [xi, xj]
-            mean, std, draw = [draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xdata, ydata, L, kernel, hparams)[x][1] for x in 1:3]
-            mean_2d_grid[k,l] = mean
-            std_2d_grid[k,l] = std
+            GP_result = draw_from_posterior_given_precomputed_kernel_from_data(reshape(xpoint, (1,dims)), xdata, ydata, L, kernel, hparams)
+            mean_2d_grid[k,l] = GP_result[1][1]
+            std_2d_grid[k,l] = GP_result[2][1]
         end
     end
 
@@ -152,24 +152,25 @@ Uses a GP model (i.e. a given kernel and set of hyperparameters), an estimate fo
 Also computes the function 'f_true' on the same 2-d grids, if provided.
 """
 function predict_mean_std_on_2d_grids_all_combinations(params_names, xmin::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}; grid_dims::Int64=20, f_x::Union{Function, Nothing}=nothing)
-    @assert size(xdata)[2] == length(xmin) == length(params_names)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 2) == length(xmin) == length(params_names)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     dims = length(params_names)
+    pairs = sum(1:dims-1) # number of pairs of parameters; equivalent to dims choose 2
 
     xtrain_mins, xtrain_maxs = findmin(xdata, dims=1)[1], findmax(xdata, dims=1)[1]
 
     L = compute_kernel_given_data(xdata, kernel, hparams; ydata_err=ydata_err)
 
     if f_x !== nothing
-        f_true_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, sum(1:dims-1))
+        f_true_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, pairs)
     end
-    mean_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, sum(1:dims-1))
-    std_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, sum(1:dims-1))
+    mean_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, pairs)
+    std_2d_grids = Array{Float64,3}(undef, grid_dims, grid_dims, pairs)
     grid_count = 1 # To index how many 2d grids are computed
     for i in 1:dims
         for j in 1:i-1
-            xi_axis = convert(Vector{Float64}, range(xtrain_mins[i], stop=xtrain_maxs[i], length=grid_dims))
-            xj_axis = convert(Vector{Float64}, range(xtrain_mins[j], stop=xtrain_maxs[j], length=grid_dims))
+            xi_axis = range(xtrain_mins[i], stop=xtrain_maxs[i], length=grid_dims)
+            xj_axis = range(xtrain_mins[j], stop=xtrain_maxs[j], length=grid_dims)
             if f_x !== nothing
                 f_true_2d_grid = Array{Float64,2}(undef, grid_dims, grid_dims)
                 for (k,xi) in enumerate(xi_axis)
@@ -186,19 +187,22 @@ function predict_mean_std_on_2d_grids_all_combinations(params_names, xmin::Vecto
         end
     end
 
-    if f_x === nothing
-        return DataFrame(transpose(reshape(mean_2d_grids, (grid_dims, grid_dims*sum(1:dims-1))))), DataFrame(transpose(reshape(std_2d_grids, (grid_dims, grid_dims*sum(1:dims-1)))))
-    else
-        return DataFrame(transpose(reshape(f_true_2d_grids, (grid_dims, grid_dims*sum(1:dims-1))))), DataFrame(transpose(reshape(mean_2d_grids, (grid_dims, grid_dims*sum(1:dims-1))))), DataFrame(transpose(reshape(std_2d_grids, (grid_dims, grid_dims*sum(1:dims-1)))))
+    grids_dict = Dict{Symbol, DataFrame}()
+    grids_dict[:mean_grids] = DataFrame(vcat([mean_2d_grids[:,:,i] for i in 1:pairs]...))
+    grids_dict[:std_grids] = DataFrame(vcat([std_2d_grids[:,:,i] for i in 1:pairs]...))
+    if f_x !== nothing
+        grids_dict[:f_x_grids] = DataFrame(vcat([f_true_2d_grids[:,:,i] for i in 1:pairs]...))
     end
+
+    return grids_dict
 end
 
 """
 Uses a GP model (i.e. a given kernel and set of hyperparameters) and a set of data points, to compute the mean, standard deviation, and a draw from the posterior at each point drawn from a uniform prior for 'n_draws' points.
 """
 function predict_model_at_n_points_from_uniform_prior(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_draws::Int64)
-    @assert size(xdata)[2] == length(params_names)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 2) == length(params_names)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     dims = length(params_names)
 
     xtrain_mins, xtrain_maxs = findmin(xdata, dims=1)[1], findmax(xdata, dims=1)[1]
@@ -220,8 +224,8 @@ end
 Uses a GP model (i.e. a given kernel and set of hyperparameters) with a pre-computed cholesky decomposition matrix 'L' and a set of data points, to compute the mean, standard deviation, and a draw from the posterior at points drawn from a uniform prior until a point passing the criteria for the mean and std is accepted.
 """
 function predict_model_from_uniform_prior_until_accept_point(prior_bounds::Array{Tuple{Float64,Float64},1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, ydata_err::Vector{Float64}; n_accept::Int64=1, max_mean::Float64=Inf, max_std::Float64=Inf)
-    @assert size(xdata,1) == length(ydata) == length(ydata_err)
-    dims = size(xdata,2)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
+    dims = size(xdata, 2)
 
     points_accepted_GP = Array{Float64,2}(undef, n_accept, dims+3)
     count_accepted = 0
@@ -244,8 +248,9 @@ end
 Evaluates 'predict_model_from_uniform_prior_until_accept_point' until 'n_accept' total points are accepted (in series).
 """
 function predict_model_from_uniform_prior_until_accept_n_points(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; max_mean::Float64=Inf, max_std::Float64=Inf)
-    @assert size(xdata)[2] == length(params_names)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 2) == length(params_names)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
+    @assert n_accept > 0
     dims = length(params_names)
 
     xtrain_mins, xtrain_maxs = findmin(xdata, dims=1)[1], findmax(xdata, dims=1)[1]
@@ -273,8 +278,8 @@ end
 Evaluates 'predict_model_from_uniform_prior_until_accept_point' until 'n_accept' total points are accepted (in parallel).
 """
 function predict_model_from_uniform_prior_until_accept_n_points_parallel(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; n_batch::Int64=n_accept, max_mean::Float64=Inf, max_std::Float64=Inf)
-    @assert size(xdata)[2] == length(params_names)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 2) == length(params_names)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     @assert rem(n_accept, n_batch) == 0 # 'n_batch' is the number of batches, NOT the number of points per batch
     dims = length(params_names)
     n_per_batch = div(n_accept, n_batch)
@@ -307,7 +312,7 @@ end
 Computes the log-marginal likelihood of the GP model given the data, a kernel, and a set of hyperparameters.
 """
 function log_marginal_likelihood(xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}; ydata_err::Vector{Float64}=zeros(length(ydata)))
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
 
     K_f = kernel(xdata, xdata, hparams)
     var_I = zeros(size(K_f))
@@ -322,7 +327,7 @@ end
 Optimize the hyperparameters of a given kernel using maximum likelihood estimation, given a training dataset and an initial guess for the hyperparameters.
 """
 function optimize_hparams_with_MLE(hparams_guess::Vector{Float64}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function; ydata_err::Vector{Float64}=zeros(length(ydata)), hparams_lower::Vector{Float64}=ones(length(hparams_guess)).*1e-2, hparams_upper::Vector{Float64}=ones(length(hparams_guess)).*1e2)
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     @assert length(hparams_guess) == length(hparams_lower) == length(hparams_upper)
 
     #@time result1 = optimize(hparams -> -log_marginal_likelihood(xdata, ydata, kernel, hparams; ydata_err=ydata_err), hparams_guess, BFGS()) #unconstrained, no gradient
@@ -350,7 +355,7 @@ Computes the sum of the std's of the GP model at a given set of cross-validation
 TODO: maybe should sum the differences in the GP mean predictions as well as the std's  at the cross-validation points?
 """
 function sum_var_prediction_at_CV_points(xdata::Array{Float64,2}, xcheck::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}; ydata_err::Vector{Float64}=zeros(length(ydata)))
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
 
     K_ss = kernel(xcheck, xcheck, hparams)
     K_s = kernel(xdata, xcheck, hparams)
@@ -395,7 +400,7 @@ Assumes the first element in 'hparams' is the amplitude and the rest are the len
 """
 function dK_dsigma_kernel_SE_ndims(xpoints1::Array{Float64,2}, xpoints2::Array{Float64,2}, hparams::Vector{Float64})
     sigma_f, lscales = hparams[1], hparams[2:end]
-    @assert length(lscales) == size(xpoints1)[2] == size(xpoints2)[2]
+    @assert length(lscales) == size(xpoints1, 2) == size(xpoints2, 2)
 
     return (2/sigma_f).*kernel_SE_ndims(xpoints1, xpoints2, hparams)
 end
@@ -406,7 +411,7 @@ Assumes the first element in 'hparams' is the amplitude and the rest are the len
 """
 function dK_dlj_kernel_SE_ndims(xpoints1::Array{Float64,2}, xpoints2::Array{Float64,2}, hparams::Vector{Float64}, j::Integer)
     sigma_f, lscales = hparams[1], hparams[2:end]
-    @assert length(lscales) == size(xpoints1)[2] == size(xpoints2)[2]
+    @assert length(lscales) == size(xpoints1, 2) == size(xpoints2, 2)
     @assert 1 <= j <= length(lscales)
 
     K = kernel_SE_ndims(xpoints1, xpoints2, hparams)
@@ -418,7 +423,7 @@ end
 Computes the gradient of the log-marginal likelihood as a function of the hyperparameters, given the data, a kernel, its partial derivatives with respect to the hyperparameters, and a set of hyperparameters.
 """
 function gradient_log_marginal_likelihood(xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}; ydata_err::Vector{Float64}=zeros(length(ydata)))
-    @assert size(xdata)[1] == length(ydata) == length(ydata_err)
+    @assert size(xdata, 1) == length(ydata) == length(ydata_err)
 
     K_f = kernel(xdata, xdata, hparams)
     var_I = zeros(size(K_f))
@@ -460,7 +465,7 @@ end
 """
 Splits a given dataset randomly into two samples, a 'training' set with 'n_train' points and a 'cross-validation' set with the remaining number of points.
 """
-function split_data_training_cv(xdata, ydata, ydata_err; n_train::Int64=div(size(xdata,1), 2))
+function split_data_training_cv(xdata, ydata, ydata_err; n_train::Int64=div(size(xdata, 1), 2))
     @assert n_train < size(xdata, 1)
     dims = size(xdata, 2)
 
