@@ -223,7 +223,7 @@ end
 """
 Uses a GP model (i.e. a given kernel and set of hyperparameters) with a pre-computed cholesky decomposition matrix 'L' and a set of data points, to compute the mean, standard deviation, and a draw from the posterior at points drawn from a uniform prior until a point passing the criteria for the mean and std is accepted.
 """
-function predict_model_from_uniform_prior_until_accept_point(prior_bounds::Array{Tuple{Float64,Float64},1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, ydata_err::Vector{Float64}; n_accept::Int64=1, max_mean::Float64=Inf, max_std::Float64=Inf)
+function predict_model_from_uniform_prior_until_accept_point(prior_bounds::Array{Tuple{Float64,Float64},1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, L::Transpose{Float64,UpperTriangular{Float64,Array{Float64,2}}}, ydata_err::Vector{Float64}; n_accept::Int64=1, max_mean::Float64=Inf, max_std::Float64=Inf, max_post::Float64=Inf)
     @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     dims = size(xdata, 2)
 
@@ -234,7 +234,7 @@ function predict_model_from_uniform_prior_until_accept_point(prior_bounds::Array
         prior_draw = map(j -> prior_bounds[j][1] + (prior_bounds[j][2] - prior_bounds[j][1])*rand(), 1:dims)
         GP_result = draw_from_posterior_given_precomputed_kernel_from_data(reshape(prior_draw, (1,dims)), xdata, ydata, L, kernel, hparams)
         count_draws += 1
-        if GP_result[1][1] < max_mean && GP_result[2][1] < max_std
+        if GP_result[1][1] < max_mean && GP_result[2][1] < max_std && GP_result[3][1] < max_post
             count_accepted += 1
             points_accepted_GP[count_accepted,:] = [prior_draw; [GP_result[j][1] for j in 1:3]]
             #prior_draws_GP_table[count_accepted, 1:end] = [prior_draw; [GP_result[j][1] for j in 1:3]]
@@ -247,7 +247,7 @@ end
 """
 Evaluates 'predict_model_from_uniform_prior_until_accept_point' until 'n_accept' total points are accepted (in series).
 """
-function predict_model_from_uniform_prior_until_accept_n_points(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; max_mean::Float64=Inf, max_std::Float64=Inf)
+function predict_model_from_uniform_prior_until_accept_n_points(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; max_mean::Float64=Inf, max_std::Float64=Inf, max_post::Float64=Inf)
     @assert size(xdata, 2) == length(params_names)
     @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     @assert n_accept > 0
@@ -261,7 +261,7 @@ function predict_model_from_uniform_prior_until_accept_n_points(params_names::Ar
     prior_draws_GP_table = Array{Float64,2}(undef, n_accept, dims+3)
     count_draws = 0
     for i in 1:n_accept
-        prior_draws_GP_table[i, 1:end], counts = predict_model_from_uniform_prior_until_accept_point(prior_bounds, xdata, ydata, kernel, hparams, L, ydata_err; max_mean=max_mean, max_std=max_std)
+        prior_draws_GP_table[i, 1:end], counts = predict_model_from_uniform_prior_until_accept_point(prior_bounds, xdata, ydata, kernel, hparams, L, ydata_err; max_mean=max_mean, max_std=max_std, max_post=max_post)
         count_draws += counts
 
         if i == 10
@@ -277,7 +277,7 @@ end
 """
 Evaluates 'predict_model_from_uniform_prior_until_accept_point' until 'n_accept' total points are accepted (in parallel).
 """
-function predict_model_from_uniform_prior_until_accept_n_points_parallel(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; n_batch::Int64=n_accept, max_mean::Float64=Inf, max_std::Float64=Inf)
+function predict_model_from_uniform_prior_until_accept_n_points_parallel(params_names::Array{Symbol,1}, xdata::Array{Float64,2}, ydata::Vector{Float64}, kernel::Function, hparams::Vector{Float64}, ydata_err::Vector{Float64}, n_accept::Int64; n_batch::Int64=n_accept, max_mean::Float64=Inf, max_std::Float64=Inf, max_post::Float64=Inf)
     @assert size(xdata, 2) == length(params_names)
     @assert size(xdata, 1) == length(ydata) == length(ydata_err)
     @assert rem(n_accept, n_batch) == 0 # 'n_batch' is the number of batches, NOT the number of points per batch
@@ -293,7 +293,7 @@ function predict_model_from_uniform_prior_until_accept_n_points_parallel(params_
     prior_draws_GP_table = SharedArray{Float64,2}(n_accept, dims+3)
     draws_per_accept = SharedArray{Int64,1}(n_batch)
     @sync @distributed for i in 1:n_batch
-        prior_draws_GP_table[1+(i-1)*n_per_batch:i*n_per_batch,:], draws_per_accept[i] = predict_model_from_uniform_prior_until_accept_point(prior_bounds, xdata, ydata, kernel, hparams, L, ydata_err; n_accept=n_per_batch, max_mean=max_mean, max_std=max_std)
+        prior_draws_GP_table[1+(i-1)*n_per_batch:i*n_per_batch,:], draws_per_accept[i] = predict_model_from_uniform_prior_until_accept_point(prior_bounds, xdata, ydata, kernel, hparams, L, ydata_err; n_accept=n_per_batch, max_mean=max_mean, max_std=max_std, max_post=max_post)
     end
     count_draws = sum(draws_per_accept)
 

@@ -101,9 +101,9 @@ function train_GP_emulator(; dims::Int64, data_path::String, f_err::Float64=0.8,
         fig4 = scatter([ytrain ycheck], [mu_train mu_cv], markersize=1, xlabel="Data", ylabel="Mean prediction", label=["Training", "Cross-validation"])
         plot!(range(0, stop=maximum(ycheck), length=100), range(0, stop=maximum(ycheck), length=100), label="Perfect prediction")
 
-        fig5 = scatter([ydiff_train], [stdv_train], markersize=1, xlabel="Mean prediction - Data", ylabel="Uncertainty of prediction", label=["Training", "Cross-validation"])
+        fig5 = scatter([ydiff_train ydiff_cv], [stdv_train stdv_cv], markersize=1, xlabel="Mean prediction - Data", ylabel="Uncertainty of prediction", label=["Training", "Cross-validation"])
 
-        fig6 = scatter([mu_train], [stdv_train], markersize=1, xlabel="Mean prediction", ylabel="Uncertainty of prediction", label=["Training", "Cross-validation"])
+        fig6 = scatter([mu_train mu_cv], [stdv_train stdv_cv], markersize=1, xlabel="Mean prediction", ylabel="Uncertainty of prediction", label=["Training", "Cross-validation"])
 
         fig3_6 = plot(fig3,fig4,fig5,fig6, layout=(2,2), guidefontsize=8, legend=true, legendfontsize=4)
         display(fig3_6)
@@ -134,15 +134,15 @@ data_path = "GP_files"
 #data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Clustered_P_R/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some11_params_KSweightedrms/lc_lp_0p5_5_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90_sigmaR_0_0p5_sigmaP_0_0p3/Fixed_Rbreak3_Ncrit8/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr/GP_files"
 
 #hparams_best = [8.03106, 0.2036, 0.344798, 0.415796, 0.484306, 0.757346, 1.81563, 950.991, 36.9642, 0.851163, 0.159388, 395.641] # Clustered_P_R with 'n_data = 2000', 'mean_f = 30.'
-#hparams_best = [10., 0.3, 1.2, 1.5, 1.2, 1.8, 3., 0.03, 60., 1., 0.15, 0.1]
+#hparams_best = [1., 0.3, 1.2, 1.5, 1.2, 1.8, 3., 0.03, 60., 1., 0.15, 0.1]
 
 # Clustered_P:
 #data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Clustered_P/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some10_params_KSweightedrms/Fixed_Rbreak3_Ncrit8/lc_lp_0p5_5_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90_sigmaP_0_0p3/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr/GP_files"
-#hparams_best = [10., 0.3, 0.8, 1., 0.5, 0.8, 2., 0.03, 60., 1., 0.1]
+#hparams_best = [1., 0.3, 0.8, 1., 0.5, 0.8, 2., 0.03, 60., 1., 0.1]
 
 # Non_Clustered:
 #data_path = "/Users/Matthias/Documents/GradSchool/Eric_Ford_Research/ACI/Model_Optimization/Julia_v0.7/Kepler_catalog_optimization/q1q17_dr25_gaia_fgk_stars80006/Non_Clustered/f_high_incl_low_incl_mmr/Fit_rate_mult_P_Pratios_D_Dratios_dur_durratios_mmr/Some8_params_KSweightedrms/Fixed_Rbreak3_Ncrit8/lc_1_10_alphaP_-2_1_alphaR1_R2_-6_0_ecc_0_0p1_incl_inclmmr_0_90/targs400030_maxincl0_maxiters5000/sigma_i_greater_sigma_i_mmr/GP_files"
-#hparams_best = [10., 0.05, 0.25, 0.1, 0.8, 1.5, 0.01, 60., 0.5]
+#hparams_best = [1., 0.05, 0.25, 0.1, 0.8, 1.5, 0.01, 60., 0.5]
 
 dims = 11
-GP_model = train_GP_emulator(; dims=dims, data_path=data_path, n_train=2000, n_cv=2000, mean_f=50., kernel=kernel_SE_ndims, hparams_best=hparams_best, make_plots=false)
+GP_model = train_GP_emulator(; dims=dims, data_path=data_path, n_train=2000, n_cv=2000, mean_f=50., kernel=kernel_SE_ndims, hparams_best=hparams_best, make_plots=true)
